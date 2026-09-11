@@ -1,0 +1,33 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+# 本机调试设备信息（含手机序列号），对别人没意义
+/.idea/deploymentTargetSelector.xml
+/.idea/deviceManager.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.kotlin
+
+# 构建产物
+*.apk
+*.aab
+*.ap_
+/app/release
+
+# 签名文件：一旦提交就相当于把密钥公开了
+*.jks
+*.keystore
+
+# 崩溃日志 / 其他
+*.hprof
+.vs/

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      界面完全由 Compose 绘制，配色在 ui/theme/Theme.kt 里定义，
+      这里只需要一个没有 ActionBar 的壳，避免顶部多出一条系统栏。
+    -->
+    <style name="Theme.LifeLedger" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 启动瞬间的背景色，与首页顶部渐变起始色一致，避免白屏闪烁 -->
+        <item name="android:windowBackground">#FF5B4CE0</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

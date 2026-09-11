@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 1 -->
+    <string name="preset_1_title">Paid in Full</string>
+    <string name="preset_1_desc">Own a home of your own with no mortgage</string>
+    <string name="preset_1_story">You paid the whole price in one go, and the agent stared at your transfer record for three solid seconds. The deed is in your hands with a single name on it — yours. One of the rarest achievements on this planet.</string>
+    <!-- 2 -->
+    <string name="preset_2_title">Financially Free</string>
+    <string name="preset_2_desc">Passive income covers your living costs</string>
+    <string name="preset_2_story">No more worrying about bills, no more forcing yourself to work on days you cannot stand it. You finally own the most expensive thing on Earth: freedom. And you learned that it was never the money that made you happy — it was the choices money buys.</string>
+    <!-- 3 -->
+    <string name="preset_3_title">Console Collector</string>
+    <string name="preset_3_desc">Own several generations of game consoles</string>
+    <string name="preset_3_story">Your shelf holds one generation after another: Switch, PS5, Xbox, and the classics long out of production. Each one carries the memories of a different era. You were never collecting machines — you were collecting pieces of your youth.</string>
+    <!-- 4 -->
+    <string name="preset_4_title">Five Continents</string>
+    <string name="preset_4_desc">Leave footprints on every continent on Earth</string>
+    <string name="preset_4_story">You left footprints on all seven continents. From Antarctic ice to African savanna, from old European towns to South American rainforest — you measured this planet with your own feet. It is more beautiful, more fragile and more worth protecting than you imagined.</string>
+    <!-- 5 -->
+    <string name="preset_5_title">Discipline Legend</string>
+    <string name="preset_5_desc">Get up early every day for 365 days straight</string>
+    <string name="preset_5_story" formatted="false">One of the hardest achievements on Earth. Every morning you fought the gravity of the bed, the pull of the phone and the weight of exhaustion. But those early hours, those quiet mornings, became the most valuable thing you own. You have outplayed 99% of the players.</string>
+    <!-- 6 -->
+    <string name="preset_6_title">Finish a Marathon</string>
+    <string name="preset_6_desc">42.195 km, measured with your own two feet</string>
+    <string name="preset_6_story">At kilometre 35 you nearly quit — legs like lead, lungs in a vise. But you turned the final corner, saw the finish line and spent everything you had. By the time the medal touched your neck, you were already thinking about the next marathon.</string>
+    <!-- 7 -->
+    <string name="preset_7_title">Debt Free</string>
+    <string name="preset_7_desc">No mortgage, no car loan, no consumer debt</string>
+    <string name="preset_7_story">In an age where everyone owes someone, you owe no one. No mortgage pressure, no credit card dread — you live lighter than most people do. Not because you earn more, but because you know how to control your desires.</string>
+    <!-- 8 -->
+    <string name="preset_8_title">Bilingual</string>
+    <string name="preset_8_desc">Master a language other than your mother tongue</string>
+    <string name="preset_8_story">From the alphabet to fluent conversation took years. That language opened a window onto scenery you had never seen and people you would never have met. The world got bigger because of it.</string>
+    <!-- 9 -->
+    <string name="preset_9_title">First Camping Trip</string>
+    <string name="preset_9_desc">Spend a night camping out in the wild</string>
+    <string name="preset_9_story">The campfire crackled, the stars were within reach, insects and wind carried from far away. No city light pollution out here. Lying in your sleeping bag you saw the Milky Way in full for the first time — the night sky is this beautiful.</string>
+    <!-- 10 -->
+    <string name="preset_10_title">Lose Ten Kilos</string>
+    <string name="preset_10_desc">Beat gravity with nothing but discipline</string>
+    <string name="preset_10_story">You gave up late-night snacks, went to the gym daily and doubted your life in front of the scale. Then one day you put on that old pair of jeans and the zipper slid up without a fight. In that moment you felt capable of anything.</string>
+    <!-- 11 -->
+    <string name="preset_11_title">Travel Abroad</string>
+    <string name="preset_11_desc">Take a trip to a foreign country</string>
+    <string name="preset_11_story">The first entry stamp lands in your passport. You stand on a foreign street where the air smells unfamiliar and the signs make no sense, and you are thrilled. The world is larger and stranger than you imagined, and you have just taken the first step.</string>
+    <!-- 12 -->
+    <string name="preset_12_title">A Thousand Miles</string>
+    <string name="preset_12_desc">Cross a thousand miles just to see one person</string>
+    <string name="preset_12_story">You bought a plane or train ticket and crossed half the country just to see that one person. Maybe you only shared a meal or took a short walk. But a heart that travelled a thousand miles is worth more than anything.</string>
+    <!-- 13 -->
+    <string name="preset_13_title">See the Aurora</string>
+    <string name="preset_13_desc">Witness the sky\'s own light show near the Arctic Circle</string>
+    <string name="preset_13_story">You waited three hours in minus twenty degrees. When the green curtain began to dance overhead you forgot the cold. It was the most beautiful light you have ever seen — belonging to no city, only to the planet itself.</string>
+    <!-- 14 -->
+    <string name="preset_14_title">A Lifelong Bond</string>
+    <string name="preset_14_desc">Have a friend of ten years or more you trust without condition</string>
+    <string name="preset_14_story">Ten years. You have seen each other at your worst, traded your deepest secrets, argued and made up. In a world of people constantly coming and going, one person is always still there — that is worth more than anything.</string>
+    <!-- 15 -->
+    <string name="preset_15_title">Five Years Strong</string>
+    <string name="preset_15_desc">Keep a hobby going for five years without quitting</string>
+    <string name="preset_15_story">Five years of drawing, running, writing, photography or piano. The people around you changed again and again; this one small thing you kept. It may bring no fame and no money, but it gives your soul somewhere to rest.</string>
+    <!-- 16 -->
+    <string name="preset_16_title">A Year of Bookkeeping</string>
+    <string name="preset_16_desc">Know exactly where every cent goes</string>
+    <string name="preset_16_story">You tracked every purchase for a year — and found out how much of it went on milk tea. You started to rethink what is actually worth buying. That is not stinginess; it is respect for your own labour.</string>
+    <!-- 17 -->
+    <string name="preset_17_title">Start a Company</string>
+    <string name="preset_17_desc">Build an organisation of your own</string>
+    <string name="preset_17_story">You quit the stable job and registered a company with your savings. For three months there was no income, only anxiety. Then the first order landed — and you looked at that number and cried.</string>
+    <!-- 18 -->
+    <string name="preset_18_title">24 Hours Awake</string>
+    <string name="preset_18_desc">Stay awake for more than 24 hours</string>
+    <string name="preset_18_story">You watched the clock tick past the 24-hour mark. Eyelids heavy, mind slow, and still you could not sleep. Maybe stress, maybe excitement, maybe plain insomnia. Either way, you are testing the limits of human physiology.</string>
+    <!-- 19 -->
+    <string name="preset_19_title">Half a World Away</string>
+    <string name="preset_19_desc">Reach somewhere more than six time zones from home</string>
+    <string name="preset_19_story">You flew for over ten hours. Your body insists it is three in the morning; outside the window it is blazing noon. Standing on a foreign street it hits you: the world is much bigger than you thought.</string>
+    <!-- 20 -->
+    <string name="preset_20_title">Dialect Master</string>
+    <string name="preset_20_desc">Speak two or more regional dialects fluently</string>
+    <string name="preset_20_story">You do not just speak the standard language — you can switch into two or more dialects and blend right in. Every dialect is a local cultural cipher, and you hold several of the keys.</string>
+    <!-- 21 -->
+    <string name="preset_21_title">Extreme Study Session</string>
+    <string name="preset_21_desc">Study more than ten hours outside class in a single day</string>
+    <string name="preset_21_story">At two in the morning you were still grinding through problems and your roommate said you had lost it. You did not know what you were fighting for — only that you refused to lose to people who worked harder. Years later those desperate days are the purest time of your life.</string>
+    <!-- 22 -->
+    <string name="preset_22_title">Read 50 Books</string>
+    <string name="preset_22_desc">Unlock the lifelong-learning achievement</string>
+    <string name="preset_22_story">You wrote the date on the last page of the fiftieth book and remembered stumbling through the first one. These books did not change your fate, but they changed how you see the world — and that is enough.</string>
+    <!-- 23 -->
+    <string name="preset_23_title">Sleep Champion</string>
+    <string name="preset_23_desc">Sleep ten hours or more in a single day</string>
+    <string name="preset_23_story">One rare day off, you turned off every alarm and slept for over ten hours. You woke to good sunlight, a growling stomach and a completely empty head. Doing nothing at all has never felt so luxurious.</string>
+    <!-- 24 -->
+    <string name="preset_24_title">100 Days of One Habit</string>
+    <string name="preset_24_desc">Prove that discipline is more than motivational talk</string>
+    <string name="preset_24_story">Day one you were full of fire. Day ten you wanted to quit. Day thirty it felt routine. On the morning of day one hundred you opened your eyes and realised the thing that once took willpower had become part of your life.</string>
+    <!-- 25 -->
+    <string name="preset_25_title">Spontaneous Trip</string>
+    <string name="preset_25_desc">Decide on a whim and leave right away</string>
+    <string name="preset_25_story">On Friday night you had a sudden idea and bought a ticket. On Saturday morning you were drinking coffee on a street in another city. No plan, no companion — just a backpack and a heart pointed somewhere far away. The best gift you ever gave yourself.</string>
+    <!-- 26 -->
+    <string name="preset_26_title">Donate Blood</string>
+    <string name="preset_26_desc">Save a stranger\'s life with 400 ml of blood</string>
+    <string name="preset_26_story">You rolled up your sleeve and watched the needle enter the vein. The nurse said your blood might save someone on an operating table. It struck you then: anyone can be somebody\'s hero — no superpowers needed, just a little courage.</string>
+    <!-- 27 -->
+    <string name="preset_27_title">Maker</string>
+    <string name="preset_27_desc">Complete a handmade project entirely on your own</string>
+    <string name="preset_27_story">From nothing — a block of wood, a length of thread, a lump of clay — something whole took shape in your hands. Imperfect, but one of a kind. The joy of making things is in the making, not in how polished the result looks.</string>
+    <!-- 28 -->
+    <string name="preset_28_title">Earn a PhD</string>
+    <string name="preset_28_desc">Become an expert in a very narrow field</string>
+    <string name="preset_28_story">Five years, maybe more, and finally the word Doctor appears on that thin certificate. You stand at the summit of academia looking out over the edge of human knowledge — and discover there is an even bigger unknown beyond it.</string>
+    <!-- 29 -->
+    <string name="preset_29_title">1000-Hour Player</string>
+    <string name="preset_29_desc">Log more than 1000 hours in a single game</string>
+    <string name="preset_29_story">The counter says you have put over a thousand hours into this one game. People ask whether it was worth it and you do not know how to answer. Those late nights, those teammates, that laughter and those tears — no number can measure them.</string>
+    <!-- 30 -->
+    <string name="preset_30_title">Film Lover</string>
+    <string name="preset_30_desc">Watch more than thirty films in one year</string>
+    <string name="preset_30_story">Your watchlist keeps growing and your log is dense. Every film is a window onto a different life. Thirty, fifty, a hundred — your view of the world shifted quietly in all that light and shadow.</string>
+    <!-- 31 -->
+    <string name="preset_31_title">DIY Renovator</string>
+    <string name="preset_31_desc">Build the living space you always wanted, by hand</string>
+    <string name="preset_31_story">You painted walls, hung lights and assembled furniture, turning a bare shell into the home you dreamed of. Every detail carries your effort, and your friends\' gasps when they visited were the best reward of all.</string>
+    <!-- 32 -->
+    <string name="preset_32_title">Learn an Instrument</string>
+    <string name="preset_32_desc">Say what words cannot, with music</string>
+    <string name="preset_32_story">You played a piece all the way through for the first time. Fingering still clumsy, timing still rough — but the melody came out of your own hands. Now you understand why people say music is the language of the soul.</string>
+    <!-- 33 -->
+    <string name="preset_33_title">Financially Independent</string>
+    <string name="preset_33_desc">Stop relying on money from your family</string>
+    <string name="preset_33_story">The first time you paid rent, bought groceries and covered the utility bills with money you earned, it stung a little — and you felt prouder than ever. From today you are an adult who stands on their own.</string>
+    <!-- 34 -->
+    <string name="preset_34_title">The Family Host</string>
+    <string name="preset_34_desc">Become the organiser at the centre of family gatherings</string>
+    <string name="preset_34_story">You arranged the whole family dinner: booked the restaurant, set the seating, ordered the dishes, remembered everyone\'s tastes. Looking at all those smiling faces you realised you have become the backbone of this family.</string>
+    <!-- 35 -->
+    <string name="preset_35_title">Minimal Social Circle</string>
+    <string name="preset_35_desc">Keep three or fewer truly close friends</string>
+    <string name="preset_35_story">Your contacts list is long but your real friends number two or three. You do not chase socialising and you do not feel lonely. Quality over quantity, always — a few true friends beat a thousand casual likes.</string>
+    <!-- 36 -->
+    <string name="preset_36_title">Public Speaking</string>
+    <string name="preset_36_desc">Overcome fear and move people with your voice</string>
+    <string name="preset_36_story">You stood on stage with shaking legs and a trembling voice. Then you finished and the room applauded — and you found that being afraid was never as terrible as the fear itself.</string>
+    <!-- 37 -->
+    <string name="preset_37_title">Furry Companion</string>
+    <string name="preset_37_desc">Keep a cat or dog for more than five years</string>
+    <string name="preset_37_story">Five years, and they have gone from a tiny kitten or pup to the most important part of your life. They wait when you are out; they fly at you when you come home. They cannot speak, but the love they give is purer than anyone\'s.</string>
+    <!-- 38 -->
+    <string name="preset_38_title">Strangers from Home</string>
+    <string name="preset_38_desc">Run into your own people far from home</string>
+    <string name="preset_38_story">You heard your own language on a foreign street and were flooded with familiarity. You talked for a long time, swapped contacts, then went your separate ways. But you will never forget that afternoon\'s coffee.</string>
+    <!-- 39 -->
+    <string name="preset_39_title">Second Language</string>
+    <string name="preset_39_desc">Unlock the skill of speaking to another culture</string>
+    <string name="preset_39_story">Years of memorising words and drilling pronunciation, and then one day you told a joke in another language — and the other person laughed. In that moment you knew you truly owned the language.</string>
+    <!-- 40 -->
+    <string name="preset_40_title">Sign the Contract</string>
+    <string name="preset_40_desc">Own a permanent coordinate on this planet</string>
+    <string name="preset_40_story">You signed your name on the purchase contract, taking on twenty years of commitment in a single stroke. But when you turned the key in the door of your new home, you knew it was worth it.</string>
+    <!-- 41 -->
+    <string name="preset_41_title">Short-Video Spiral</string>
+    <string name="preset_41_desc">Scroll for eight hours without leaving the screen</string>
+    <string name="preset_41_story" formatted="false">You only meant to relax for five minutes, and then you looked up and it was dark. Battery down from 80% to 5%, neck aching, thumb still moving. The algorithm knows you better than you know yourself — that is the frightening part.</string>
+    <!-- 42 -->
+    <string name="preset_42_title">Plant Parent</string>
+    <string name="preset_42_desc">Keep a houseplant alive for a whole year</string>
+    <string name="preset_42_story">You watered, fertilised and moved it into the sun — and it actually survived a whole year. You proudly posted a photo: not a plant killer any more. That is when you learned that keeping something alive takes more patience than you thought.</string>
+    <!-- 43 -->
+    <string name="preset_43_title">Go Abroad</string>
+    <string name="preset_43_desc">Set foot in another country</string>
+    <string name="preset_43_story">You walked off the plane into unfamiliar smells and signs you could not read, buzzing with excitement. The world really is enormous — big enough that a whole lifetime would not cover it.</string>
+    <!-- 44 -->
+    <string name="preset_44_title">Easy Crier</string>
+    <string name="preset_44_desc">Cry over more than ten films or shows</string>
+    <string name="preset_44_story">You are not a crier, but some films simply will not let your eyes stay dry. The tenth time you wiped your face in a cinema you accepted it: sensitivity is not weakness, it is proof of how deeply you can feel.</string>
+    <!-- 45 -->
+    <string name="preset_45_title">Road Trip</string>
+    <string name="preset_45_desc">Take a road trip behind the wheel</string>
+    <string name="preset_45_story">Hands on the wheel, friends or your partner beside you, heading south along the coast. Music up, windows down, wind pouring in, all of you singing loudly. There is no destination on this road — the scenery along the way is the point.</string>
+    <!-- 46 -->
+    <string name="preset_46_title">Learn to Say No</string>
+    <string name="preset_46_desc">Say no to unreasonable demands</string>
+    <string name="preset_46_story">The first time you said no, you were anxious, certain the world would collapse. Nothing happened. Instead you felt lighter than you had in years. Saying no is a skill too.</string>
+    <!-- 47 -->
+    <string name="preset_47_title">Sleep Deprived</string>
+    <string name="preset_47_desc">Average under seven hours of sleep a day</string>
+    <string name="preset_47_story">Six hours has become normal and caffeine is your daily shield. You tell yourself it is the price of ambition, but you also know your body will come collecting one day.</string>
+    <!-- 48 -->
+    <string name="preset_48_title">Long-Term Single</string>
+    <string name="preset_48_desc">Stay single for four years or more as an adult</string>
+    <string name="preset_48_story">Your friends paired off, married, had kids — and you are still single. Sometimes it makes you anxious, but more often you think freedom is wonderful. Love cannot be rushed and cannot be forced.</string>
+    <!-- 49 -->
+    <string name="preset_49_title">Dinner on Me</string>
+    <string name="preset_49_desc">Treat your family to an expensive meal with your own money</string>
+    <string name="preset_49_story">You booked the restaurant you had always wanted to take them to but never dared to pay for. Watching your parents\' faces — half pained by the price, half bursting with pride — you knew it was worth it. Not because the food was good, but because you could finally repay them.</string>
+    <!-- 50 -->
+    <string name="preset_50_title">University Graduate</string>
+    <string name="preset_50_desc">Graduate from higher education</string>
+    <string name="preset_50_story">You walked the campus again and again in your gown, trying to memorise every path. Four years for a single sheet of paper — but you know the story behind that paper is the real fortune.</string>
+    <!-- 51 -->
+    <string name="preset_51_title">Series Binger</string>
+    <string name="preset_51_desc">Finish ten full-length series</string>
+    <string name="preset_51_story">Night after night you finished season after season, agonising over the characters and gasping at the twists. Ten shows, hundreds of hours, lived inside one parallel world after another. Binging is not just entertainment — it is sampling other lives.</string>
+    <!-- 52 -->
+    <string name="preset_52_title">Help a Stranger</string>
+    <string name="preset_52_desc">Help someone you have never met, asking nothing back</string>
+    <string name="preset_52_story">You shared your umbrella with someone caught in the rain, or pointed a lost stranger the right way. When they said thank you, you understood: kindness is the most powerful skill in this game. No contest.</string>
+    <!-- 53 -->
+    <string name="preset_53_title">Live Concert</string>
+    <string name="preset_53_desc">Feel the power of music in the room</string>
+    <string name="preset_53_story">The lights went down, then blazed up, and the artist sang the song you love most. You sang along with tens of thousands of people and knew for certain: music is the closest thing to magic on this planet.</string>
+    <!-- 54 -->
+    <string name="preset_54_title">Master\'s Degree</string>
+    <string name="preset_54_desc">Earn a master\'s degree</string>
+    <string name="preset_54_story">Countless late nights in the library, and then finally that long thesis was done. On defence day you stood at the lectern and answered every question calmly. You knew you had done it.</string>
+    <!-- 55 -->
+    <string name="preset_55_title">Working Far From Home</string>
+    <string name="preset_55_desc">Build a life in another city, going home twice a year at most</string>
+    <string name="preset_55_story">You dragged a suitcase into a strange city. The rented room is small and the work is hard, but every month when you send money home it all feels worth it. You are a bridge: one end your hometown, the other your horizon.</string>
+    <!-- 56 -->
+    <string name="preset_56_title">Comfortable Alone</string>
+    <string name="preset_56_desc">Eat, travel and shop alone — and enjoy it</string>
+    <string name="preset_56_story">Hotpot for one, a film for one, a trip for one — it is no longer awkward, it is freedom. You learned to be good company to yourself, which may be the most important skill in a whole life.</string>
+    <!-- 57 -->
+    <string name="preset_57_title">Summit</string>
+    <string name="preset_57_desc">Hike to a high peak and look down at the world</string>
+    <string name="preset_57_story">The last few hundred metres were the hardest, every step demanding everything you had. Then you stood on top, a sea of clouds churning below and mountains rolling out like waves — and you understood why people climb: not to arrive, but to see.</string>
+    <!-- 58 -->
+    <string name="preset_58_title">Travel With My Parents</string>
+    <string name="preset_58_desc">Rediscover your parents on a trip as an adult</string>
+    <string name="preset_58_story">You took them travelling, the way they once took you to see the world. You noticed your father walks slower now and your mother forgets more. Suddenly you realised you are becoming their support, just as they once were yours.</string>
+    <!-- 59 -->
+    <string name="preset_59_title">Becoming a Parent</string>
+    <string name="preset_59_desc">Unlock the parenting questline, permanent</string>
+    <string name="preset_59_story">You held that small life for the first time — so soft, so light, and so completely real. In that moment you understood: your own parents held you, looked at you and loved you just like this. For twenty, thirty, forty years.</string>
+    <!-- 60 -->
+    <string name="preset_60_title">Promotion and a Raise</string>
+    <string name="preset_60_desc">Have your work formally recognised</string>
+    <string name="preset_60_story">Your boss said you had done great work, and that starting next month things would change. You tried to stay cool, but fireworks were going off inside. You earned this with countless late nights. You deserve it.</string>
+    <!-- 61 -->
+    <string name="preset_61_title">For Mom</string>
+    <string name="preset_61_desc">Give your mother a gift or flowers</string>
+    <string name="preset_61_story">When she got the gift she said you had wasted money — while beaming. She may never say it out loud, but in that moment she was the happiest mother alive. Do not wait for Mother\'s Day.</string>
+    <!-- 62 -->
+    <string name="preset_62_title">Get Married</string>
+    <string name="preset_62_desc">Sign a lifelong contract with another player</string>
+    <string name="preset_62_story">You stood at the ceremony watching them walk towards you in white. You thought back to the first time you met, never imagining you would stand here and promise, in front of everyone, for richer or poorer, in sickness and in health.</string>
+    <!-- 63 -->
+    <string name="preset_63_title">100 Films</string>
+    <string name="preset_63_desc">Unlock the film-lover title</string>
+    <string name="preset_63_story">You laughed, cried and thought in dark theatres. As the hundredth film ended you realised you were not watching movies — you were watching a hundred possible lives.</string>
+    <!-- 64 -->
+    <string name="preset_64_title">Still That Kid</string>
+    <string name="preset_64_desc">Hold on to a childhood passion as an adult</string>
+    <string name="preset_64_story">As a child you loved drawing, music, writing or sport. Everyone told you to be practical — but you quietly kept it. One late night you picked up the brush, the guitar, the pen again, and found that kid still living inside you. He never left.</string>
+    <!-- 65 -->
+    <string name="preset_65_title">Solo Travel</string>
+    <string name="preset_65_desc">Set out alone for somewhere completely unfamiliar</string>
+    <string name="preset_65_story">You stood on a strange street with a suitcase, no guide, no plan, only yourself. You were scared — and utterly free. This is where your real independence began.</string>
+    <!-- 66 -->
+    <string name="preset_66_title">Public Transit Regular</string>
+    <string name="preset_66_desc">Rely on the metro and bus all year round</string>
+    <string name="preset_66_story">You know every interchange on every line in this city by heart, and your rush-hour technique is flawless. It is not that you cannot buy a car — you simply think public transit is a way of life too.</string>
+    <!-- 67 -->
+    <string name="preset_67_title">Beat a Game</string>
+    <string name="preset_67_desc">Finish a game without looking at a walkthrough</string>
+    <string name="preset_67_story">You died countless times and came close to throwing your keyboard. When the credits finally rolled, the sense of accomplishment made it all worth it. Only later did you learn the true ending needs three more playthroughs.</string>
+    <!-- 68 -->
+    <string name="preset_68_title">The Dreamer</string>
+    <string name="preset_68_desc">Have far more ideas than you ever start</string>
+    <string name="preset_68_story">You have endless plans: learn guitar, practise English, open a cafe, travel the world. All of them live in your head and none have happened yet. Maybe one day you will take the first step. Maybe not. At least you still have the right to dream.</string>
+    <!-- 69 -->
+    <string name="preset_69_title">The Breakup</string>
+    <string name="preset_69_desc">Love someone seriously and still not make it to the end</string>
+    <string name="preset_69_story">You tried, you worked at it, you argued and compromised, and in the end you drifted apart. You deleted the photos and unfollowed the accounts, but there are still songs you cannot listen to. Regret is the price of growing up — at least you learned how to love.</string>
+    <!-- 70 -->
+    <string name="preset_70_title">A Friend for Life</string>
+    <string name="preset_70_desc">Have a friend you have known for over ten years</string>
+    <string name="preset_70_story">Ten years, from school uniforms to wedding dresses, or from single to still single. You share so many memories and so many secrets — that is what a friend for life means.</string>
+    <!-- 71 -->
+    <string name="preset_71_title">Mutual Feelings</string>
+    <string name="preset_71_desc">Confess, and find out they feel the same</string>
+    <string name="preset_71_story">You summoned every bit of courage to say I like you, heart hammering in your throat. Then they smiled — and that smile told you they had been waiting for those words too. Love that runs both ways is the finest thing in the world.</string>
+    <!-- 72 -->
+    <string name="preset_72_title">Learn to Cook</string>
+    <string name="preset_72_desc">Unlock the cooking life skill</string>
+    <string name="preset_72_story">You made a meal you could actually eat, entirely by yourself. The kitchen looked like a battlefield and the salt was overdone, but eating food you made yourself felt irreplaceable.</string>
+    <!-- 73 -->
+    <string name="preset_73_title">Attention Hijacked</string>
+    <string name="preset_73_desc">Open your phone to look something up, look up hours later</string>
+    <string name="preset_73_story">You opened your phone to check one thing, and three hours later you were grinning at the screen. The recommendation algorithm carried you into a whole new world — and you do not even remember walking in.</string>
+    <!-- 74 -->
+    <string name="preset_74_title">Self-Healing</string>
+    <string name="preset_74_desc">Pull yourself out of a low point without leaning on others</string>
+    <string name="preset_74_story">Those days were grey. You did not want to see anyone or say anything. But every day you forced yourself to do one small thing: shower, go outside, eat something decent. Slowly, light came in. You saved yourself, and that strength will stay with you for life.</string>
+    <!-- 75 -->
+    <string name="preset_75_title">First Rental</string>
+    <string name="preset_75_desc">Find a corner of your own in a strange city</string>
+    <string name="preset_75_story">You signed your first lease. The place is not big and the walls have a little mould, but for the first time you have a space that is genuinely yours.</string>
+    <!-- 76 -->
+    <string name="preset_76_title">Living Alone</string>
+    <string name="preset_76_desc">Live independently, without your parents, for the first time</string>
+    <string name="preset_76_story">You stood at the door of the rental with your bags, and as the key turned in the lock you realised: from now on nobody will remind you to dress warm or eat on time. You are your own guardian and your own child.</string>
+    <!-- 77 -->
+    <string name="preset_77_title">Top-Tier Scenic Spot</string>
+    <string name="preset_77_desc">Visit China\'s highest-rated tourist attractions</string>
+    <string name="preset_77_story">Two hours in the queue for five minutes of photos. It was crowded enough to make you question your life choices — but standing in front of that legendary view you admitted it: worth it.</string>
+    <!-- 78 -->
+    <string name="preset_78_title">A Perfect Score</string>
+    <string name="preset_78_desc">Score full marks on an exam</string>
+    <string name="preset_78_story">When the paper came back you could not believe your eyes — full marks. The teacher read your name out in front of the whole class and for a moment you thought you might be a genius. Later you learned that may have been one of the few bright peaks of your life.</string>
+    <!-- 79 -->
+    <string name="preset_79_title">Angler</string>
+    <string name="preset_79_desc">Fish outdoors every week for the quiet</string>
+    <string name="preset_79_story">You sit by the water with a motionless rod, the world reduced to moving water and birdsong. Whether you catch anything does not matter; these few empty, peaceful hours do. A person fishing is not fishing — they are talking to themselves.</string>
+    <!-- 80 -->
+    <string name="preset_80_title">Bachelor\'s Degree</string>
+    <string name="preset_80_desc">Earn a bachelor\'s degree</string>
+    <string name="preset_80_story">In your gown you moved the tassel from right to left. Four years of late nights, exams, romance and confusion came to a full stop in that one motion.</string>
+    <!-- 81 -->
+    <string name="preset_81_title">Drifting Apart</string>
+    <string name="preset_81_desc">Slowly lose touch with your best friend from childhood</string>
+    <string name="preset_81_story">You were once inseparable with nothing left unsaid. Then you moved to different cities and built different circles. Your chat log ends at last year\'s birthday message. You are not sad — you just wonder sometimes whether they are doing okay.</string>
+    <!-- 82 -->
+    <string name="preset_82_title">Driver\'s Licence</string>
+    <string name="preset_82_desc">Unlock the right to operate a motor vehicle</string>
+    <string name="preset_82_story">You gripped the wheel and the instructor hit the passenger brake more times than you can count. Then the little booklet was in your hand — and now you can go anywhere you want, as long as you can afford the fuel.</string>
+    <!-- 83 -->
+    <string name="preset_83_title">Takeout Dependent</string>
+    <string name="preset_83_desc">A full week of three takeout meals a day, no cooking</string>
+    <string name="preset_83_story">Your kitchen has grown a layer of dust and the delivery rider is the person you see most. Seven days without turning on the stove: your stomach protests and your laziness cheers. After all, who wants to do the dishes?</string>
+    <!-- 84 -->
+    <string name="preset_84_title">Safe and Sound</string>
+    <string name="preset_84_desc">Live a life free of major accidents or disasters</string>
+    <string name="preset_84_story">You may feel your life is plain, without grand drama. But do you know? To grow up and grow old in safety is itself an extraordinary stroke of luck. Peace is the greatest luxury.</string>
+    <!-- 85 -->
+    <string name="preset_85_title">Sunset Collector</string>
+    <string name="preset_85_desc">Travel to different places specifically to photograph sunsets</string>
+    <string name="preset_85_story">You keep a whole album of sunsets: seaside, mountaintop, city rooftop, airport runway. No two are alike and every one is magnificent. You are not chasing the sun — you are chasing that one moment of stillness and feeling.</string>
+    <!-- 86 -->
+    <string name="preset_86_title">Learn to Swim</string>
+    <string name="preset_86_desc">Unlock the water movement skill</string>
+    <string name="preset_86_story">The instructor threw you into the deep end and your limbs moved on instinct. When you realised you were actually floating, the thrill of owning the water wiped out the fear.</string>
+    <!-- 87 -->
+    <string name="preset_87_title">First Time Drunk</string>
+    <string name="preset_87_desc">Experience the side effects of alcohol</string>
+    <string name="preset_87_story">You got drunk for the first time at a party, woke with a splitting headache and swore off drinking forever. But here is the thing about humans: we forget pain and repeat the same mistake.</string>
+    <!-- 88 -->
+    <string name="preset_88_title">First I Love You</string>
+    <string name="preset_88_desc">Open your heart completely to another person</string>
+    <string name="preset_88_story">Your voice shook on those three words and you had no idea how they would answer. Then they said it back — and it felt like the whole world was applauding for you.</string>
+    <!-- 89 -->
+    <string name="preset_89_title">Paycheck to Paycheck</string>
+    <string name="preset_89_desc">Spend the whole salary every month, savings near zero</string>
+    <string name="preset_89_story">Payday is your richest day and your most spendthrift one. At the end of the month you check your balance and swear you will start saving — and next month the cycle begins again.</string>
+    <!-- 90 -->
+    <string name="preset_90_title">First Job</string>
+    <string name="preset_90_desc">Unlock the working-adult identity</string>
+    <string name="preset_90_story">On your first day you were so nervous you arrived half an hour early. You did not know how long you would stay in that role, but you remember exactly how it felt: finally, you were a grown-up.</string>
+    <!-- 91 -->
+    <string name="preset_91_title">The Gaokao</string>
+    <string name="preset_91_desc">Finish the most important timed exam of your life</string>
+    <string name="preset_91_story">In the heat of June you wrote furiously in the exam hall. When the final bell rang you walked outside into blinding sunlight — one era ending, another beginning.</string>
+    <!-- 92 -->
+    <string name="preset_92_title">First Heartbreak</string>
+    <string name="preset_92_desc">Feel your heart break, and unlock resilience</string>
+    <string name="preset_92_story">You deleted the chat history and locked the photos in a folder only you know about. You walked a long time in the rain, sure you would not survive it. Years later you look back grateful to the person who broke your heart — they taught you how to love.</string>
+    <!-- 93 -->
+    <string name="preset_93_title">First Kiss</string>
+    <string name="preset_93_desc">Unlock stage two of physical intimacy</string>
+    <string name="preset_93_story">You were so nervous you forgot to breathe, and when your lips met your mind went blank. You have kissed many times since, but you will always remember how clumsy and green the first one was.</string>
+    <!-- 94 -->
+    <string name="preset_94_title">First Time Away</string>
+    <string name="preset_94_desc">Leave home alone for a strange city for the first time</string>
+    <string name="preset_94_story">The train pulled out slowly and home shrank behind you. Watching the scenery change you felt excited and uneasy at once. This was the first real departure of your life — from here on, you face the world on your own.</string>
+    <!-- 95 -->
+    <string name="preset_95_title">Long-Distance Hike</string>
+    <string name="preset_95_desc">Complete a hike of three days or more</string>
+    <string name="preset_95_story">Three days, sixty kilometres, blisters on your soles and legs like lead. But looking back from the finish you found you were stronger than you believed. Hiking does not teach you to walk — it teaches you to keep going while exhausted.</string>
+    <!-- 96 -->
+    <string name="preset_96_title">First All-Nighter</string>
+    <string name="preset_96_desc">Experience a sleepless night of 24 hours</string>
+    <string name="preset_96_story">You stared at the ceiling until dawn, replaying the day in your head. For the first time you understood that growing up is not one moment — it is the accumulation of nights like this.</string>
+    <!-- 97 -->
+    <string name="preset_97_title">Holding Hands</string>
+    <string name="preset_97_desc">Unlock stage one of physical intimacy</string>
+    <string name="preset_97_story">Your fingers brushed under the desk, then slowly, tentatively, laced together. The afternoon sun was warm and you wished time would stop right there.</string>
+    <!-- 98 -->
+    <string name="preset_98_title">Last-Minute Miracle</string>
+    <string name="preset_98_desc">Always finish on the deadline, always pull it off</string>
+    <string name="preset_98_story">The night before the deadline, fingers flying, adrenaline surging. Every time you swear you will start early next time; every time history repeats. Good news: you always make it. Bad news: your heart may not take many more.</string>
+    <!-- 99 -->
+    <string name="preset_99_title">Surviving the Zhongkao</string>
+    <string name="preset_99_desc" formatted="false">Make it through a 50% elimination rate</string>
+    <string name="preset_99_story">You sat in the exam hall with your pen moving across the paper. In that moment you had no idea this sheet would decide where your next three years would happen.</string>
+    <!-- 100 -->
+    <string name="preset_100_title">First Love</string>
+    <string name="preset_100_desc">Feel your heart skip, and unlock liking someone</string>
+    <string name="preset_100_story">Your heart sped up when you saw them and you secretly wrote their name on your homework. First loves rarely work out, but they teach you what a racing heart feels like — better than any textbook.</string>
+    <!-- 101 -->
+    <string name="preset_101_title">Primary School Graduation</string>
+    <string name="preset_101_desc">Complete the first stage of compulsory education</string>
+    <string name="preset_101_story">Six years went by in a hurry and you took a graduation photo in your uniform. Back then you had no idea that was the most carefree summer of your life.</string>
+    <!-- 102 -->
+    <string name="preset_102_title">Staying Up Champion</string>
+    <string name="preset_102_desc">Still online at three in the morning, past your body\'s limits</string>
+    <string name="preset_102_story">At three in the morning you were the only one still active. You do not know why you are not sleeping — work, games, or simply not wanting the day to end. When the sun comes up you revive. At least for now.</string>
+    <!-- 103 -->
+    <string name="preset_103_title">Start School</string>
+    <string name="preset_103_desc">Unlock the nine-year compulsory education questline</string>
+    <string name="preset_103_story">You put on your backpack and walked through the school gate. The bell rang and the first character went up on the blackboard — this is the longest questline of your life, with no saves and no do-overs.</string>
+    <!-- 104 -->
+    <string name="preset_104_title">Learn to Ride a Bike</string>
+    <string name="preset_104_desc">Master a basic movement skill</string>
+    <string name="preset_104_story">You fell more times than you can count and your knees were covered in plasters. But when you finally rode steady, wind rushing past your ears, you felt like you were flying.</string>
+    <!-- 105 -->
+    <string name="preset_105_title">First Mama and Papa</string>
+    <string name="preset_105_desc">Unlock level one of the language skill</string>
+    <string name="preset_105_story">You mumbled your first papa and mama, and your parents\' eyes went wet. You had no idea those two words would stay with you for life.</string>
+    <!-- 106 -->
+    <string name="preset_106_title">Learn to Walk</string>
+    <string name="preset_106_desc">Move independently without any help</string>
+    <string name="preset_106_story">You wobbled upright, and after countless falls, took your first step. In that moment the world opened at your feet.</string>
+    <!-- 107 -->
+    <string name="preset_107_title">First Breath</string>
+    <string name="preset_107_desc">Be born on this planet — character creation complete</string>
+    <string name="preset_107_story">Congratulations! You have successfully spawned on Earth Online. Initial stats have been assigned. Please begin your exploration.</string>
+    <!-- 108 -->
+    <string name="preset_108_title">First Loud Cry</string>
+    <string name="preset_108_desc">Announce your arrival with a cry</string>
+    <string name="preset_108_story">Your first wail echoed through the delivery room. The nurse patted your tiny bottom and you protested with everything you had — your first connection with the world.</string>
+    <!-- 109 -->
+    <string name="preset_109_title">Survivor</string>
+    <string name="preset_109_desc">Face a major life challenge and come out alive</string>
+    <string name="preset_109_story">You have been through a storm — illness, loss, or a crushing setback. But you made it. The scars are still there, but they are no longer wounds; they are medals. You are alive, and stronger than before.</string>
+    
+    <!-- Categories -->
+    <string name="preset_category_growth">Growth</string>
+    <string name="preset_category_life">Life</string>
+    <string name="preset_category_travel">Travel</string>
+    <string name="preset_category_education">Education</string>
+    <string name="preset_category_relationships">Relationships</string>
+    <string name="preset_category_entertainment">Entertainment</string>
+    <string name="preset_category_social">Social</string>
+    <string name="preset_category_hobbies">Hobbies</string>
+    <string name="preset_category_skills">Skills</string>
+    <string name="preset_category_career">Career</string>
+    <string name="preset_category_family">Family</string>
+    <string name="preset_category_starter_village">Starter Village</string>
+    <string name="preset_category_health">Health</string>
+    <string name="preset_category_finance">Finance</string>
+</resources>
