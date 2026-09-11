@@ -12,6 +12,8 @@
 ![Offline](https://img.shields.io/badge/Offline-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+> **不想自己编译？** 到 [Releases](https://github.com/mrlingan/LifeLedger/releases/latest) 直接下载 APK，装到手机上就能用。Android 7.0 及以上。
+
 由 **[mrlingan](https://github.com/mrlingan)** 开发与维护。
 
 ---
@@ -143,13 +145,19 @@ ui/theme/
 
 ## 快速开始
 
-### 环境要求
+### 直接安装
+
+到 [Releases](https://github.com/mrlingan/LifeLedger/releases/latest) 下载最新的 `LifeLedger-vX.Y.Z.apk`，在手机设置里允许「安装未知来源的应用」，安装即可。不需要账号，也不需要给任何权限。
+
+> 当前版本使用 APK Signature Scheme v2 签名，对应 `minSdk 24`（Android 7.0）及以上。校验用的 SHA-256 写在每个 Release 的说明里。
+
+### 从源码运行
+
+环境要求：
 
 - Android Studio（建议最新稳定版）
 - JDK 17
 - Android SDK Platform 35
-
-### 运行
 
 ```bash
 git clone https://github.com/mrlingan/LifeLedger.git
