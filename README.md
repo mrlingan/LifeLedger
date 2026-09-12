@@ -35,13 +35,21 @@
 
 ## 功能
 
+### 🚀 第一次打开
+
+- 先问一句「从哪里开始」：**默认**把 109 条预设成就加进「我的成就」列表，之后一条条去达成；**自定义**则从空白开始，只记录自己写下的成就
+- 两种选择都不影响图鉴——109 条随时可以浏览、挑选、解锁
+- 已经在用的用户（升级上来的）不会被问第二次
+
 ### 📊 首页 · 人生仪表盘
 
-- 问候语与日期，随时间段变化
-- 核心数字：已完成成就数（44sp 主视觉）+ 环形完成度
-- **最近解锁**：横向滚动的收藏区
-- **人生数据**：成就总数、连续记录天数、近 7 天完成数
-- 底部一个「全部成就」入口，写着共有多少条、其中多少条进行中
+- 问候语 + 日期 + 一句激励语（设了昵称和签名就显示你自己的），右上角是「记录成就」
+- 配过昵称或头像之后，头像会出现在左上角，点一下直接进个人资料
+- **人生进度**：阶段（每完成 5 条向上一个阶段）+ 进度条 + 百分比并排，下面写明距离下一阶段还差几条
+- **核心数据**：已完成 / 进行中 / 总记录 / 坚持天数（附当前连续记录），一行四个数字，标签在上、数字在下
+- **分类进度**：图鉴各分类的收集进度，一行五个小圆环 + 「查看全部」进图鉴
+- **最近解锁**：最近 3 条做成卡片，带封面（配过图就显示那张图，没有就用标题首字）、名称、描述与稀有度；具体时间不在这里露面，点进详情才看
+- 收尾一行「从 X 开始记录 · 已记录 N 天」
 - 首页只做总览，**不放成就列表**：记录再多，首页的长度也不会变
 
 ### 🏆 成就管理 · 独立于首页
@@ -50,14 +58,16 @@
 - 新建成就：可以从图鉴挑一条预填，也可以完全自己写（标题、描述、图标）
 - 编辑与删除（删除会级联清理它下面的笔记和媒体）
 - 标记完成 / 取消完成，**完成日期可以手动指定**（系统日历选择器）
+- 标记完成的那一刻有一次触感反馈和一声轻音（`res/raw/complete.wav`）；取消完成保持安静，也不需要额外权限
 - 成就详情页：大图标 Hero 区、解锁时间线、相关数据、记事本
 
-### 📖 成就图鉴
+### 📖 成就图鉴 · 人生经历档案馆
 
 - 内置 **109 条**预设成就，覆盖成长、生活、旅行、学业、情感、娱乐、社交、兴趣、技能、职业、家庭、新手村、健康、财务 14 个分类
 - 五档稀有度：青铜 / 白银 / 黄金 / 白金 / 传奇（按达成率自动推导）
-- 关键词搜索、分类筛选、按稀有度分区
-- 已达成有视觉重量，未解锁保留轮廓
+- **档案索引式陈列**：徽记在左，右侧第一行是名称、第二行是介绍，再下面是稀有度；手机一列，宽屏自动变两列。未解锁的额外标出达成率，完成时间只在详情里显示
+- **三重筛选**：关键词搜索、全部 / 已解锁 / 未解锁、按分类
+- 已解锁用稀有度色描边的徽记和主文字色；未解锁保留名称、描述和达成率，整体降一档对比度——不做大锁，也不做问号
 - 支持「从图鉴挑选」→ 自动预填标题、描述、图标到新建页
 - **图鉴的达成状态与首页共用同一份数据**：在首页取消完成，图鉴会同步变回未解锁
 
@@ -70,21 +80,30 @@
 
 ### 💾 数据备份
 
-- 一键导出为 `.zip`：包含全部结构化数据与原始图片视频
+- 一键导出为 `.zip`：包含全部结构化数据、原始图片视频，以及个人资料（昵称、签名、头像）
+- 导出时**可以给整份备份设一个口令**（PBKDF2-HMAC-SHA256 派生密钥 + AES-256-GCM）：留空就是普通 zip，设了口令则连文件名之外的一切都是密文；导入时识别到加密会自动索要口令
 - 导入恢复，带二次确认（覆盖式恢复）
 - 备份文件里的媒体路径是相对路径，**换机之后也能正确还原**
 
 ### ⚙️ 设置
 
+- **成就设置**：新成就的默认图标、标记完成前的二次确认、关注的分类（关注的分类在首页和列表里排前面）
 - **主题**：跟随系统 / 浅色 / 深色
-- **应用锁**：指纹、面容或锁屏密码；离开超过 30 秒自动重新锁定
 - **语言**：跟随系统 / 简体中文 / English
-- 备份与恢复入口、当前数据量、关于信息
+- **显示**：列表密度（紧凑 / 标准 / 宽松）、字号缩放
+- **动画**：完整 / 精简 / 关闭
+- **备份与恢复**：导出、导入，以及当前数据量
+- **每日提醒**：设定时间与频率（每天 / 工作日），到点用系统闹钟在本机弹一条通知；不引入 WorkManager
+- **应用锁**：指纹、面容或锁屏密码；离开超过 30 秒自动重新锁定
+- **数据安全**：数据存放位置、**本地加密开关**、备份入口
+- **个人资料**：昵称、头像、个人签名；昵称会出现在首页问候语里，签名出现在问候语下面。头像复制进应用私有目录，不依赖相册原图
+- **关于**：版本号与开源许可
 
 ### 🎨 界面
 
 - 完整的自定义设计系统（颜色 / 字体 / 间距 / 圆角 / 动效）
 - **没有使用任何 Material 默认观感的组件**：卡片、按钮、输入框、弹窗、开关、筛选器全部自己实现
+- **底部导航**：首页 / 成就 / 图鉴 / 设置四个入口，进详情、新建、备份这类二级页面时自动收起；选中态只用强调色，没有选中色块和指示器
 - 深色模式独立调色，不是简单的黑白反转
 - **中英双语**：跟随系统语言切换，图鉴的 109 条标题 / 描述 / 故事都有完整英文版
 
@@ -114,6 +133,7 @@
 | 异步 | Coroutines + Flow |
 | 图片 | 系统照片选择器（无需存储权限） |
 | 安全 | AndroidX Biometric 1.1.0 |
+| 加密 | Android Keystore + AES-256-GCM；本地数据用信封加密，备份可选口令加密（PBKDF2-HMAC-SHA256） |
 | 构建 | AGP 9.3.0 · Gradle 9.5 · JDK 17 |
 | 最低版本 | Android 7.0（API 24） |
 
@@ -142,7 +162,7 @@ ui/theme/
 - 层级靠「表面色差 + 1dp 描边」建立，**不用阴影**
 - 动效只有 8dp 位移动画和淡入淡出，没有弹跳
 
-公共组件位于 `ui/components/`，共 16 个：`AppTopBar`、`AppCard`、`AppButton`、`AppIconButton`、`AppTextField`、`AppDialog`、`AppSnackbar`、`AppChip`、`AppSwitch`、`AppSettingRow`、`SegmentedControl`、`AchievementCard`、`RarityBadge`、`StatusBadge`、`MetricNumber` / `StatTile`、`ProgressBar` / `ProgressRing` / `IndeterminateBar`、`SectionHeader` / `TimelineItem`、`EmptyState`、`AppearAnimation`。
+公共组件位于 `ui/components/`：`AppTopBar`、`AppBottomBar`、`AppCard`、`AppButton`、`AppIconButton`、`AppTextLink`、`AppTextField`、`AppDialog`、`AppSnackbar`、`AppChip`、`AppSwitch`、`AppSettingRow`、`SegmentedControl`、`AchievementCard`、`RarityBadge`、`StatusBadge`、`MetricNumber` / `StatTile`、`ProgressBar` / `ProgressRing` / `IndeterminateBar`、`SectionHeader` / `TimelineItem`、`EmptyState`、`AppearAnimation`。
 
 ---
 
@@ -150,7 +170,7 @@ ui/theme/
 
 ### 直接安装
 
-到 [Releases](https://github.com/mrlingan/LifeLedger/releases/latest) 下载最新的 `LifeLedger-vX.Y.Z.apk`，在手机设置里允许「安装未知来源的应用」，安装即可。不需要账号，也不需要给任何权限。
+到 [Releases](https://github.com/mrlingan/LifeLedger/releases/latest) 下载最新的 `LifeLedger-vX.Y.Z.apk`，在手机设置里允许「安装未知来源的应用」，安装即可。不需要账号，也不申请网络权限；唯一可能用到的是「每日提醒」的通知权限，而且只在你打开提醒开关时才会申请。
 
 > 当前版本使用 APK Signature Scheme v2 签名，对应 `minSdk 24`（Android 7.0）及以上。校验用的 SHA-256 写在每个 Release 的说明里。
 
@@ -186,27 +206,38 @@ app/src/main/
 ├── java/com/Anchored/mylife/
 │   ├── MainActivity.kt
 │   ├── data/
-│   │   ├── backup/        备份与恢复（zip 打包 / 解包 / 数据迁移）
+│   │   ├── backup/        备份与恢复（zip 打包 / 解包 / 可选口令加密）
+│   │   ├── crypto/        本地字段加密（信封加密 + 逐行迁移）
 │   │   ├── dao/           Room DAO
 │   │   ├── database/      实体、数据库、迁移、数据库提供者
 │   │   ├── media/         媒体文件复制、实况照片解析
 │   │   ├── preset/        预设成就导入器
+│   │   ├── profile/       头像的私有副本
+│   │   ├── reminder/      每日提醒（系统闹钟 + 通知 + 开机重排）
 │   │   ├── repository/    仓库层与统一入口
 │   │   └── settings/      应用设置（SharedPreferences）
 │   └── ui/
 │       ├── components/    公共 UI 组件
+│       ├── home/          首页区块（问候、人生进度、核心数据、分类进度、最近解锁）
+│       ├── codex/         图鉴条目与进度区块
 │       ├── theme/         设计系统
 │       ├── AchievementNavHost.kt    导航、主题、应用锁
 │       ├── HomeScreen.kt / HomeViewModel.kt        首页总览（不放列表）
+│       ├── OnboardingScreen.kt      首次启动：选择从哪里开始
 │       ├── AllAchievementsScreen.kt / AchievementListViewModel.kt   全部成就列表
 │       ├── AchievementRow.kt        成就列表项（列表观感只有这一处实现）
 │       ├── AddOptionsSheet.kt       「从图鉴挑选 / 自己写」二选一弹层
 │       ├── AchievementDetailScreen.kt / ViewModel
 │       ├── AddAchievementScreen.kt
 │       ├── PresetAchievementScreen.kt / ViewModel
+│       ├── ProfileScreen.kt / ProfileViewModel.kt        个人资料
+│       ├── AchievementSettingsScreen.kt / ViewModel      成就设置
+│       ├── ReminderScreen.kt / ReminderViewModel.kt      每日提醒
+│       ├── DataSecurityScreen.kt / DataSecurityViewModel.kt  数据安全
 │       ├── SettingsScreen.kt / ViewModel
 │       ├── BackupScreen.kt / ViewModel
 │       ├── MediaComponents.kt
+│       ├── CompletionFeedback.kt    标记完成时的音效与触感
 │       ├── AppLockGate.kt
 │       └── PresetText.kt / PresetStringRes.kt   图鉴文案本地化
 ├── assets/
@@ -228,8 +259,12 @@ docs/screenshots/         README 用的界面截图（zh/ 与 en/ 各一套）
 | 数据 | 存放位置 |
 |---|---|
 | 成就、笔记、媒体记录、图鉴进度 | Room 数据库（应用私有目录） |
+| 成就标题 / 描述、笔记正文 | 打开「本地加密」后以密文落盘；密钥由系统 Keystore 保管，不跟数据库文件一起走 |
 | 图片、视频、实况照片副本 | `files/media/` |
+| 头像副本 | `files/profile/` |
 | 主题、应用锁等偏好 | SharedPreferences |
+
+权限只有两个，且都只服务于「每日提醒」：`POST_NOTIFICATIONS`（通知，仅在你打开提醒开关时申请）和 `RECEIVE_BOOT_COMPLETED`（重启后重排闹钟）。不申请网络权限。
 
 卸载应用会连同数据一起删除，所以**换机前请先在设置里导出备份**。
 
@@ -238,10 +273,11 @@ docs/screenshots/         README 用的界面截图（zh/ 与 en/ 各一套）
 ```
 lifeledger_backup_20260912_1040.zip
 ├── backup.json         全部结构化数据
-└── media/              原始图片与视频
+├── media/              原始图片与视频
+└── profile/            头像副本
 ```
 
-导入时会先清空当前数据再写入备份内容，媒体文件按文件名重新落地到当前设备的私有目录——所以跨设备恢复也能正确对上。
+导出时可以选择给整份备份设一个口令（不设就是普通 zip）。导入时会先清空当前数据再写入备份内容，媒体文件按文件名重新落地到当前设备的私有目录——所以跨设备恢复也能正确对上。
 
 ---
 
@@ -277,11 +313,13 @@ pwsh -File scripts/preset_i18n/generate_preset_i18n.ps1
 - [x] 数据备份与恢复
 - [x] 设计系统与全站重绘
 - [x] 深色模式与应用锁
+- [x] 本地数据加密（手动开关，信封加密 + 逐行迁移）
+- [ ] 媒体文件（图片 / 视频）的本地加密
 - [ ] 图标体系：`iconEmoji` → `iconKey`，改用统一矢量图标（含数据库迁移与旧数据映射）
-- [ ] 每日提醒（WorkManager 定时通知）
+- [x] 每日提醒（系统闹钟 + 通知，不引入 WorkManager）
 - [ ] 数据统计页：年度回顾、成长曲线、时间线
-- [ ] 显示与动画强度设置
-- [ ] 个人资料（昵称、头像）
+- [x] 显示与动画强度设置
+- [x] 个人资料（昵称、头像、个人签名）
 
 ---
 
@@ -290,7 +328,9 @@ pwsh -File scripts/preset_i18n/generate_preset_i18n.ps1
 - **成就图标目前是 Emoji**。数据模型里存的是 emoji 字符，不同厂商的系统字体渲染效果不同，长期会迁移到内置矢量图标（见路线图）。
 - 图鉴里尚未配图标的条目，暂时以标题首字占位。
 - 应用锁依赖系统的指纹 / 面容 / 锁屏密码；设备未设置任何验证方式时无法开启（这是刻意的，避免把用户关在外面）。
-- 数据库尚未接入加密（SQLCipher 等），敏感数据依赖 Android 应用沙箱保护。
+- 本地字段加密是**手动开关**（设置 → 数据安全 → 加密本地数据），默认关闭。开启后成就标题/描述与笔记正文加密存储，密钥由系统 Keystore 保管、不跟数据库文件一起走，能挡住"把库文件拷走"这类离线读取；挡不住已 root 且能在同机运行代码的人。媒体文件（图片、视频）目前仍未加密。
+- 没有接入 SQLCipher 之类的整库加密，图鉴内容、媒体路径等本来就不敏感的字段仍以明文存储。
+- **「导入 / 导出」里的选择性导出还没做**：设置里那一项仍标着「即将支持」，目前的导出和导入都是整库级别的。
 
 ---
 
