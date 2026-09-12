@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏小图标：实心圆挖出一个对勾，单色剪影 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2 a10,10 0 1,0 0.01,0 Z M10.7,16.6 L6.1,12 l1.5,-1.5 3.1,3.1 6,-6 L17.2,9.1 Z" />
+</vector>

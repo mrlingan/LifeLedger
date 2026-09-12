@@ -72,6 +72,10 @@ class AddAchievementViewModel(application: Application) : AndroidViewModel(appli
     private val repositories = RepositoryProvider.get(application)
     private val achievementRepository = repositories.achievementRepository
     private val presetRepository = repositories.presetAchievementRepository
+    private val settings = repositories.settings
+
+    /** 新建成就时的默认图标：在「设置 → 成就设置」里挑过就用挑过的 */
+    val defaultIcon: String get() = settings.defaultIcon.value
 
     /** 从图鉴带过来的预设成就；presetId 有效时才有值 */
     suspend fun loadPreset(presetId: Long): PresetAchievement? =
@@ -107,7 +111,7 @@ fun AddAchievementRoute(
     val presetTexts = rememberPresetTexts()
     var title by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
-    var iconEmoji by rememberSaveable { mutableStateOf(EmojiChoices.first()) }
+    var iconEmoji by rememberSaveable { mutableStateOf(viewModel.defaultIcon) }
     var titleError by rememberSaveable { mutableStateOf(false) }
     var sourceLabel by remember { mutableStateOf<String?>(null) }
 

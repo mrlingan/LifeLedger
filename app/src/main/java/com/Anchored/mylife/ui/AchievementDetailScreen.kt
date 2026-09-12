@@ -196,6 +196,7 @@ fun AchievementDetailScreen(
 ) {
     val colors = AppTheme.colors
     val achievement = uiState.achievement
+    val completionFeedback = rememberCompletionFeedback()
 
     var menuExpanded by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -272,6 +273,7 @@ fun AchievementDetailScreen(
                             if (achievement.isCompleted) {
                                 onMarkUncompleted()
                             } else {
+                                completionFeedback()
                                 onMarkCompleted(System.currentTimeMillis())
                             }
                         },
@@ -391,6 +393,7 @@ fun AchievementDetailScreen(
                         val picked = pickerState.selectedDateMillis
                         showDatePicker = false
                         if (picked != null) {
+                            completionFeedback()
                             onMarkCompleted(picked.toLocalDayStart())
                         }
                     }

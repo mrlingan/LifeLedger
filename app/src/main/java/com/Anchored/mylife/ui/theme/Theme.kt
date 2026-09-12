@@ -8,11 +8,17 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
+import com.Anchored.mylife.data.settings.ListDensity
+import com.Anchored.mylife.data.settings.MotionChoice
 
 /**
  * 设计系统的统一入口。
@@ -41,10 +47,40 @@ object AppTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalAppTypography.current
+
+    /** 显示偏好：列表密度、字号缩放、动效强度 */
+    val display: AppDisplay
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppDisplay.current
 }
 
 private val LocalAppColors = staticCompositionLocalOf { LightAppColors }
 private val LocalAppTypography = staticCompositionLocalOf { AppType }
+private val LocalAppDisplay = staticCompositionLocalOf { AppDisplay() }
+
+/**
+ * 显示与动效偏好。
+ *
+ * 由设置页写入、主题层提供，组件按需读取：列表密度决定列表项之间的留白，
+ * 字号缩放只作用于 sp（dp 布局不动），动效强度决定动画时长与入场效果。
+ */
+@Immutable
+data class AppDisplay(
+    val density: ListDensity = ListDensity.STANDARD,
+    val fontScale: Float = 1f,
+    val motion: MotionChoice = MotionChoice.FULL
+)
+
+/** 列表项的竖直留白，跟随显示密度 */
+val listRowPadding: androidx.compose.ui.unit.Dp
+    @Composable
+    @ReadOnlyComposable
+    get() = when (AppTheme.display.density) {
+        ListDensity.COMPACT -> Spacing.md
+        ListDensity.STANDARD -> Spacing.lg
+        ListDensity.COMFY -> Spacing.xl
+    }
 
 /**
  * 过渡常量。
@@ -117,9 +153,19 @@ private fun AppColors.toColorScheme(): ColorScheme =
 @Composable
 fun LifeLedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    display: AppDisplay = AppDisplay(),
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkAppColors else LightAppColors
+    val systemDensity = LocalDensity.current
+
+    // 应用内字号缩放：在系统字号之上再乘一层，只影响 sp，不动 dp
+    val density = remember(systemDensity, display.fontScale) {
+        Density(
+            density = systemDensity.density,
+            fontScale = systemDensity.fontScale * display.fontScale
+        )
+    }
 
     // 状态栏 / 导航栏图标跟随主题：
     // 浅色背景用深色图标，深色背景用浅色图标，避免出现"白底白图标"。
@@ -135,7 +181,9 @@ fun LifeLedgerTheme(
 
     CompositionLocalProvider(
         LocalAppColors provides colors,
-        LocalAppTypography provides AppType
+        LocalAppTypography provides AppType,
+        LocalAppDisplay provides display,
+        LocalDensity provides density
     ) {
         MaterialTheme(
             colorScheme = colors.toColorScheme(),

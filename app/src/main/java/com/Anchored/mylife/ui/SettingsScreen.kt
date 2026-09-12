@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -36,13 +37,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.data.backup.BackupSummary
 import com.Anchored.mylife.data.settings.ThemeMode
+import com.Anchored.mylife.data.settings.FontScaleChoice
+import com.Anchored.mylife.data.settings.ListDensity
+import com.Anchored.mylife.data.settings.MotionChoice
+import androidx.annotation.StringRes
 import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppAvatar
 import com.Anchored.mylife.ui.components.AppDialog
 import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppSegmentedControl
@@ -73,26 +80,43 @@ fun SettingsRoute(
 
     SettingsScreen(
         uiState = uiState,
-        onBack = { navController.popBackStack() },
+        // 设置是底部导航的 tab，不需要返回箭头
+        onBack = null,
+        onOpenProfile = { navController.navigate("profile") },
         onOpenBackup = { navController.navigate("backup") },
+        onOpenAchievementSettings = { navController.navigate("achievement_settings") },
+        onOpenReminder = { navController.navigate("reminder") },
+        onOpenDataSecurity = { navController.navigate("data_security") },
         onThemeModeChange = viewModel::setThemeMode,
         onAppLockChange = viewModel::setAppLockEnabled,
-        onLanguageChange = viewModel::setLanguage
+        onLanguageChange = viewModel::setLanguage,
+        onListDensityChange = viewModel::setListDensity,
+        onFontScaleChange = viewModel::setFontScale,
+        onMotionChange = viewModel::setMotion
     )
 }
 
 @Composable
 fun SettingsScreen(
     uiState: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
+    onOpenProfile: () -> Unit,
     onOpenBackup: () -> Unit,
+    onOpenAchievementSettings: () -> Unit,
+    onOpenReminder: () -> Unit,
+    onOpenDataSecurity: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
-    onLanguageChange: (LanguageChoice) -> Unit
+    onLanguageChange: (LanguageChoice) -> Unit,
+    onListDensityChange: (ListDensity) -> Unit,
+    onFontScaleChange: (FontScaleChoice) -> Unit,
+    onMotionChange: (MotionChoice) -> Unit
 ) {
     val colors = AppTheme.colors
     var showAbout by remember { mutableStateOf(false) }
     var showLanguage by remember { mutableStateOf(false) }
+    var showDisplay by remember { mutableStateOf(false) }
+    var showAnimation by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = colors.background,
@@ -111,19 +135,19 @@ fun SettingsScreen(
                 .padding(horizontal = Sizes.gutter)
                 .padding(bottom = Spacing.xxl)
         ) {
+            ProfileHeader(
+                nickname = uiState.nickname,
+                signature = uiState.signature,
+                avatarPath = uiState.avatarPath,
+                onClick = onOpenProfile
+            )
+
             SettingsSection(title = stringResource(R.string.settings_sec_system)) {
-                AppSettingRow(
-                    title = stringResource(R.string.settings_profile),
-                    subtitle = stringResource(R.string.settings_profile_desc),
-                    trailingText = stringResource(SOON_LABEL),
-                    enabled = false
-                )
-                AppDivider()
                 AppSettingRow(
                     title = stringResource(R.string.settings_achievements),
                     subtitle = stringResource(R.string.settings_achievements_desc),
-                    trailingText = stringResource(SOON_LABEL),
-                    enabled = false
+                    showChevron = true,
+                    onClick = onOpenAchievementSettings
                 )
             }
 
@@ -160,15 +184,17 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_display),
                     subtitle = stringResource(R.string.settings_display_desc),
-                    trailingText = stringResource(SOON_LABEL),
-                    enabled = false
+                    trailingText = stringResource(uiState.fontScale.labelRes()),
+                    showChevron = true,
+                    onClick = { showDisplay = true }
                 )
                 AppDivider()
                 AppSettingRow(
                     title = stringResource(R.string.settings_animation),
                     subtitle = stringResource(R.string.settings_animation_desc),
-                    trailingText = stringResource(SOON_LABEL),
-                    enabled = false
+                    trailingText = stringResource(uiState.motion.labelRes()),
+                    showChevron = true,
+                    onClick = { showAnimation = true }
                 )
             }
 
@@ -197,8 +223,17 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_reminder),
                     subtitle = stringResource(R.string.settings_reminder_desc),
-                    trailingText = stringResource(SOON_LABEL),
-                    enabled = false
+                    trailingText = if (uiState.reminderEnabled) {
+                        stringResource(
+                            R.string.settings_reminder_time_value,
+                            uiState.reminderHour,
+                            uiState.reminderMinute
+                        )
+                    } else {
+                        stringResource(R.string.common_off)
+                    },
+                    showChevron = true,
+                    onClick = onOpenReminder
                 )
             }
 
@@ -223,8 +258,8 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_data_sec),
                     subtitle = stringResource(R.string.settings_data_sec_desc),
-                    trailingText = stringResource(SOON_LABEL),
-                    enabled = false
+                    showChevron = true,
+                    onClick = onOpenDataSecurity
                 )
             }
 
@@ -254,6 +289,24 @@ fun SettingsScreen(
                 onLanguageChange(choice)
             },
             onDismiss = { showLanguage = false }
+        )
+    }
+
+    if (showDisplay) {
+        DisplayDialog(
+            density = uiState.listDensity,
+            fontScale = uiState.fontScale,
+            onDensityChange = onListDensityChange,
+            onFontScaleChange = onFontScaleChange,
+            onDismiss = { showDisplay = false }
+        )
+    }
+
+    if (showAnimation) {
+        AnimationDialog(
+            motion = uiState.motion,
+            onMotionChange = onMotionChange,
+            onDismiss = { showAnimation = false }
         )
     }
 }
@@ -427,6 +480,189 @@ private fun AboutLine(label: String, value: String) {
     }
 }
 
+/**
+ * 设置页顶部的资料卡：头像 + 昵称 + 签名，点一下进个人资料页。
+ *
+ * 没设置过昵称时退回「个人资料」这个标题和说明，
+ * 让第一眼仍然是"这里可以设置资料"，而不是一片空白。
+ */
+@Composable
+private fun ProfileHeader(
+    nickname: String,
+    signature: String,
+    avatarPath: String?,
+    onClick: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    AppCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = Spacing.xl),
+        onClick = onClick
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AppAvatar(
+                name = nickname,
+                path = avatarPath,
+                size = Sizes.avatarLg
+            )
+            Spacer(modifier = Modifier.width(Spacing.lg))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = nickname.ifBlank { stringResource(R.string.settings_profile) },
+                    style = AppTheme.type.h3,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                Text(
+                    text = signature.ifBlank { stringResource(R.string.settings_profile_desc) },
+                    style = AppTheme.type.bodySmall,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.textTertiary
+            )
+        }
+    }
+}
+
+@StringRes
+private fun ListDensity.labelRes(): Int = when (this) {
+    ListDensity.COMPACT -> R.string.display_density_compact
+    ListDensity.STANDARD -> R.string.display_density_standard
+    ListDensity.COMFY -> R.string.display_density_comfy
+}
+
+@StringRes
+private fun FontScaleChoice.labelRes(): Int = when (this) {
+    FontScaleChoice.SMALL -> R.string.display_font_small
+    FontScaleChoice.STANDARD -> R.string.display_font_standard
+    FontScaleChoice.LARGE -> R.string.display_font_large
+}
+
+@StringRes
+private fun MotionChoice.labelRes(): Int = when (this) {
+    MotionChoice.FULL -> R.string.animation_full
+    MotionChoice.REDUCED -> R.string.animation_reduced
+    MotionChoice.OFF -> R.string.animation_off
+}
+
+/** 显示：列表密度 + 字号缩放，两项都是即时生效 */
+@Composable
+private fun DisplayDialog(
+    density: ListDensity,
+    fontScale: FontScaleChoice,
+    onDensityChange: (ListDensity) -> Unit,
+    onFontScaleChange: (FontScaleChoice) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    AppDialog(
+        title = stringResource(R.string.display_title),
+        onDismissRequest = onDismiss,
+        onConfirm = onDismiss,
+        confirmText = stringResource(R.string.common_got_it),
+        dismissText = null,
+        content = {
+            Column {
+                OptionLabel(
+                    title = stringResource(R.string.display_density),
+                    description = null
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                AppSegmentedControl(
+                    options = ListDensity.entries.map { stringResource(it.labelRes()) },
+                    selectedIndex = ListDensity.entries.indexOf(density),
+                    onSelect = { index -> onDensityChange(ListDensity.entries[index]) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.xl))
+
+                OptionLabel(
+                    title = stringResource(R.string.display_font),
+                    description = null
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                AppSegmentedControl(
+                    options = FontScaleChoice.entries.map { stringResource(it.labelRes()) },
+                    selectedIndex = FontScaleChoice.entries.indexOf(fontScale),
+                    onSelect = { index -> onFontScaleChange(FontScaleChoice.entries[index]) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+                Text(
+                    text = stringResource(R.string.display_note),
+                    style = AppTheme.type.caption,
+                    color = colors.textTertiary
+                )
+            }
+        }
+    )
+}
+
+/** 动画强度：完整 / 精简 / 关闭 */
+@Composable
+private fun AnimationDialog(
+    motion: MotionChoice,
+    onMotionChange: (MotionChoice) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    AppDialog(
+        title = stringResource(R.string.animation_title),
+        onDismissRequest = onDismiss,
+        onConfirm = onDismiss,
+        confirmText = stringResource(R.string.common_got_it),
+        dismissText = null,
+        content = {
+            Column {
+                AppSegmentedControl(
+                    options = MotionChoice.entries.map { stringResource(it.labelRes()) },
+                    selectedIndex = MotionChoice.entries.indexOf(motion),
+                    onSelect = { index -> onMotionChange(MotionChoice.entries[index]) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(Spacing.lg))
+                Text(
+                    text = stringResource(R.string.animation_note),
+                    style = AppTheme.type.caption,
+                    color = colors.textTertiary
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun OptionLabel(title: String, description: String?) {
+    val colors = AppTheme.colors
+    Text(
+        text = title,
+        style = AppTheme.type.bodyLarge,
+        color = colors.textPrimary
+    )
+    if (description != null) {
+        Spacer(modifier = Modifier.height(Spacing.xxs))
+        Text(
+            text = description,
+            style = AppTheme.type.bodySmall,
+            color = colors.textSecondary
+        )
+    }
+}
+
 @Preview(showBackground = true, heightDp = 1200, name = "设置")
 @Composable
 private fun SettingsPreview() {
@@ -438,10 +674,17 @@ private fun SettingsPreview() {
                 appVersion = "1.0"
             ),
             onBack = {},
+            onOpenProfile = {},
             onOpenBackup = {},
+            onOpenAchievementSettings = {},
+            onOpenReminder = {},
+            onOpenDataSecurity = {},
             onThemeModeChange = {},
             onAppLockChange = {},
-            onLanguageChange = {}
+            onLanguageChange = {},
+            onListDensityChange = {},
+            onFontScaleChange = {},
+            onMotionChange = {}
         )
     }
 }
