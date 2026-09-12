@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +46,8 @@ fun AppTextField(
     isError: Boolean = false,
     supportingText: String? = null,
     leadingIcon: ImageVector? = null,
+    /** 密码模式：内容用圆点遮起来 */
+    password: Boolean = false,
     enabled: Boolean = true
 ) {
     val colors = AppTheme.colors
@@ -80,7 +84,13 @@ fun AppTextField(
             }
 
             BasicTextField(
-                value = value,
+        value = value,
+        // 密码模式：只改显示，值本身不变
+        visualTransformation = if (password) {
+            PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f),
                 enabled = enabled,

@@ -3,7 +3,15 @@ package com.Anchored.mylife.data.repository
 import android.content.Context
 import com.Anchored.mylife.data.backup.BackupManager
 import com.Anchored.mylife.data.database.DatabaseProvider
+import com.Anchored.mylife.data.crypto.DataCipher
+import com.Anchored.mylife.data.crypto.DataEncryptionMigration
+import com.Anchored.mylife.data.crypto.EncryptedAchievementDao
+import com.Anchored.mylife.data.crypto.EncryptedNoteDao
+import com.Anchored.mylife.data.profile.ProfileImageStore
 import com.Anchored.mylife.data.settings.AppSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Repository 统一入口，ViewModel 里这样用：
@@ -18,12 +26,37 @@ class RepositoryProvider private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val database = DatabaseProvider.getDatabase(appContext)
 
+    init {
+        // 信封加密：启动时把数据密钥解出来缓存到内存，之后加解密不再碰 Keystore。
+        // 放在后台线程做，避免第一次读列表时在主线程等 IPC。
+        DataCipher.init(appContext)
+        CoroutineScope(Dispatchers.IO).launch { DataCipher.warmUp() }
+    }
+
+    // 用户自己写的内容：读库时一律解密，写库时按设置里的开关决定加不加密。
+    // 装饰在 DAO 这一层：仓库、备份、迁移都从这里过，上层一行都不用改。
+    private val achievementDao = EncryptedAchievementDao(database.achievementDao()) {
+        settings.dataEncryptionEnabled.value
+    }
+    private val noteDao = EncryptedNoteDao(database.noteDao()) {
+        settings.dataEncryptionEnabled.value
+    }
+
+    /**
+     * 明文迁移：用户打开加密开关时，把库里已有的明文行逐行改写成密文。
+     *
+     * 用的是原始 DAO，因为迁移要判断的正是"落盘的值长什么样"。
+     */
+    val dataEncryptionMigration: DataEncryptionMigration by lazy {
+        DataEncryptionMigration(database.achievementDao(), database.noteDao())
+    }
+
     val achievementRepository: AchievementRepository by lazy {
-        AchievementRepository(database.achievementDao())
+        AchievementRepository(achievementDao)
     }
 
     val noteRepository: NoteRepository by lazy {
-        NoteRepository(database.noteDao())
+        NoteRepository(noteDao)
     }
 
     val mediaRepository: MediaRepository by lazy {
@@ -37,12 +70,17 @@ class RepositoryProvider private constructor(context: Context) {
 
     /** 数据备份 / 恢复 */
     val backupManager: BackupManager by lazy {
-        BackupManager(appContext, database)
+        BackupManager(appContext, database, settings, profileImageStore)
     }
 
     /** 应用设置（深色模式等偏好），存在 SharedPreferences 里 */
     val settings: AppSettings by lazy {
         AppSettings(appContext)
+    }
+
+    /** 头像文件的私有副本 */
+    val profileImageStore: ProfileImageStore by lazy {
+        ProfileImageStore(appContext)
     }
 
     companion object {

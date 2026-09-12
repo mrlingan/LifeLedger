@@ -38,10 +38,10 @@ class BackupViewModel(
 
     fun suggestedFileName(): String = backupManager.suggestedFileName()
 
-    fun export(uri: Uri) {
+    fun export(uri: Uri, passphrase: CharArray? = null) {
         _uiState.update { it.copy(isBusy = true) }
         viewModelScope.launch {
-            val result = runCatching { backupManager.exportTo(uri) }
+            val result = runCatching { backupManager.exportTo(uri, passphrase) }
             _uiState.update { state ->
                 state.copy(
                     isBusy = false,
@@ -67,10 +67,10 @@ class BackupViewModel(
         }
     }
 
-    fun import(uri: Uri) {
+    fun import(uri: Uri, passphrase: CharArray? = null) {
         _uiState.update { it.copy(isBusy = true) }
         viewModelScope.launch {
-            val result = runCatching { backupManager.importFrom(uri) }
+            val result = runCatching { backupManager.importFrom(uri, passphrase) }
             val stats = runCatching { backupManager.stats() }.getOrElse { BackupSummary() }
             _uiState.update { state ->
                 state.copy(
@@ -88,8 +88,16 @@ class BackupViewModel(
                         onFailure = {
                             appContext.getString(
                                 R.string.backup_import_failed,
-                                it.message
-                                    ?: appContext.getString(R.string.common_unknown_error)
+                                // 解密失败（口令不对 / 文件损坏）时给一句人话，不抛异常类名
+                                if (it is javax.crypto.AEADBadTagException ||
+                                    it.cause is javax.crypto.AEADBadTagException ||
+                                    it is javax.crypto.BadPaddingException
+                                ) {
+                                    appContext.getString(R.string.backup_wrong_passphrase)
+                                } else {
+                                    it.message
+                                        ?: appContext.getString(R.string.common_unknown_error)
+                                }
                             )
                         }
                     )
@@ -97,6 +105,9 @@ class BackupViewModel(
             }
         }
     }
+
+    /** 这份备份是不是加密的：路由层用它决定要不要先问密码 */
+    fun isEncrypted(uri: Uri): Boolean = backupManager.isEncrypted(uri)
 
     fun consumeMessage() {
         _uiState.update { it.copy(message = null) }

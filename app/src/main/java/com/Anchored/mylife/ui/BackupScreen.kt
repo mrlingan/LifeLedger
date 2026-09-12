@@ -41,6 +41,7 @@ import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppCard
 import com.Anchored.mylife.ui.components.AppDialog
 import com.Anchored.mylife.ui.components.AppDialogText
+import com.Anchored.mylife.ui.components.AppTextField
 import com.Anchored.mylife.ui.components.AppIndeterminateBar
 import com.Anchored.mylife.ui.components.AppSnackbarHost
 import com.Anchored.mylife.ui.components.AppTopBar
@@ -69,19 +70,29 @@ fun BackupRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportPassphrase by remember { mutableStateOf<CharArray?>(null) }
+    var importPassphrase by remember { mutableStateOf<CharArray?>(null) }
+    var encryptedImportUri by remember { mutableStateOf<Uri?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
-        if (uri != null) viewModel.export(uri)
+        if (uri != null) viewModel.export(uri, exportPassphrase)
     }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            pendingImportUri = uri
-            showRestoreConfirm = true
+            importPassphrase = null
+            // 加密备份先问密码，普通备份直接进确认
+            if (viewModel.isEncrypted(uri)) {
+                encryptedImportUri = uri
+            } else {
+                pendingImportUri = uri
+                showRestoreConfirm = true
+            }
         }
     }
 
@@ -94,7 +105,7 @@ fun BackupRoute(
     BackupScreen(
         uiState = uiState,
         onBack = { navController.popBackStack() },
-        onExportClick = { exportLauncher.launch(viewModel.suggestedFileName()) },
+        onExportClick = { showExportDialog = true },
         onImportClick = {
             importLauncher.launch(
                 arrayOf("application/zip", "application/octet-stream", "*/*")
@@ -109,7 +120,7 @@ fun BackupRoute(
             onDismissRequest = { showRestoreConfirm = false },
             onConfirm = {
                 showRestoreConfirm = false
-                pendingImportUri?.let { viewModel.import(it) }
+                pendingImportUri?.let { viewModel.import(it, importPassphrase) }
                 pendingImportUri = null
             },
             confirmText = stringResource(R.string.backup_confirm_action),
@@ -119,6 +130,102 @@ fun BackupRoute(
             }
         )
     }
+
+    if (showExportDialog) {
+        PassphraseDialog(
+            requireConfirm = true,
+            title = stringResource(R.string.backup_export_title),
+            hint = stringResource(R.string.backup_passphrase_optional),
+            onDismiss = { showExportDialog = false },
+            onConfirm = { passphrase ->
+                exportPassphrase = passphrase
+                showExportDialog = false
+                exportLauncher.launch(viewModel.suggestedFileName())
+            }
+        )
+    }
+
+    encryptedImportUri?.let { uri ->
+        PassphraseDialog(
+            requireConfirm = false,
+            title = stringResource(R.string.backup_passphrase),
+            hint = stringResource(R.string.backup_passphrase_required),
+            onDismiss = { encryptedImportUri = null },
+            onConfirm = { passphrase ->
+                encryptedImportUri = null
+                importPassphrase = passphrase
+                pendingImportUri = uri
+                showRestoreConfirm = true
+            }
+        )
+    }
+}
+
+/**
+ * 备份密码输入框。
+ *
+ * 导出时要求输两遍：密码只存在用户脑子里，打错一次等于这份备份废掉，
+ * 多问一遍比事后解释便宜。
+ */
+@Composable
+private fun PassphraseDialog(
+    requireConfirm: Boolean,
+    title: String,
+    hint: String,
+    onDismiss: () -> Unit,
+    onConfirm: (CharArray?) -> Unit
+) {
+    var passphrase by remember { mutableStateOf("") }
+    var repeated by remember { mutableStateOf("") }
+    val mismatch = requireConfirm && repeated.isNotEmpty() && passphrase != repeated
+
+    AppDialog(
+        title = title,
+        onDismissRequest = onDismiss,
+        onConfirm = {
+            if (!mismatch) {
+                onConfirm(passphrase.takeIf { it.isNotEmpty() }?.toCharArray())
+            }
+        },
+        confirmText = stringResource(R.string.common_ok),
+        dismissText = stringResource(R.string.common_cancel),
+        content = {
+            Column {
+                AppTextField(
+                    value = passphrase,
+                    onValueChange = { passphrase = it },
+                    label = stringResource(R.string.backup_passphrase),
+                    isError = mismatch,
+                    password = true
+                )
+                if (requireConfirm) {
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    AppTextField(
+                        value = repeated,
+                        onValueChange = { repeated = it },
+                        label = stringResource(R.string.backup_passphrase_again),
+                        isError = mismatch,
+                        supportingText = if (mismatch) {
+                            stringResource(R.string.backup_passphrase_mismatch)
+                        } else {
+                            null
+                        },
+                        password = true
+                    )
+                }
+                Spacer(modifier = Modifier.height(Spacing.md))
+                AppDialogText(hint)
+                if (requireConfirm) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        text = stringResource(R.string.backup_passphrase_warning),
+                        style = AppTheme.type.caption,
+                        color = AppTheme.colors.textTertiary
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable

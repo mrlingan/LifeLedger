@@ -7,6 +7,10 @@ import com.Anchored.mylife.data.database.AchievementDatabase
 import com.Anchored.mylife.data.database.Media
 import com.Anchored.mylife.data.database.Note
 import com.Anchored.mylife.data.database.PresetAchievement
+import com.Anchored.mylife.data.crypto.decrypted
+import com.Anchored.mylife.data.crypto.encrypted
+import com.Anchored.mylife.data.profile.ProfileImageStore
+import com.Anchored.mylife.data.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -40,11 +44,16 @@ data class BackupSummary(
  */
 class BackupManager(
     private val context: Context,
-    private val database: AchievementDatabase
+    private val database: AchievementDatabase,
+    private val settings: AppSettings,
+    private val profileImages: ProfileImageStore
 ) {
 
     private val mediaDir: File
         get() = File(context.filesDir, MEDIA_DIR_NAME)
+
+    private val profileDir: File
+        get() = File(context.filesDir, PROFILE_DIR_NAME)
 
     fun suggestedFileName(): String {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.CHINA).format(Date())
@@ -60,15 +69,30 @@ class BackupManager(
     }
 
     /** 导出到用户选中的位置（SAF 返回的 Uri），不需要任何存储权限 */
-    suspend fun exportTo(uri: Uri): BackupSummary = withContext(Dispatchers.IO) {
-        val achievements = database.achievementDao().getAllAchievements()
-        val notes = database.noteDao().getAllNotes()
+    suspend fun exportTo(uri: Uri, passphrase: CharArray? = null): BackupSummary = withContext(Dispatchers.IO) {
+        // 备份文件里必须是明文：换机之后要能被另一台设备的密钥重新加密。
+        // 这一步与本地加密开关无关——开关关着时行本来就是明文，decrypted() 原样返回。
+        val achievements = database.achievementDao().getAllAchievements().map { it.decrypted() }
+        val notes = database.noteDao().getAllNotes().map { it.decrypted() }
         val mediaList = database.mediaDao().getAllMedia()
         val presets = database.presetAchievementDao().getAll()
+        // 头像是文件，路径单独记，压缩包里放到 profile/ 下
+        val avatarFile = settings.avatarPath.value?.let { File(it) }?.takeIf { it.isFile }
 
         val json = JSONObject().apply {
             put("version", BACKUP_VERSION)
             put("exportedAt", System.currentTimeMillis())
+            put(
+                "profile",
+                JSONObject().apply {
+                    put("nickname", settings.nickname.value)
+                    put("signature", settings.signature.value)
+                    put(
+                        "avatar",
+                        avatarFile?.let { "$PROFILE_DIR_NAME/${it.name}" } ?: JSONObject.NULL
+                    )
+                }
+            )
             put("achievements", achievements.toAchievementJsonArray())
             put("notes", notes.toNoteJsonArray())
             put("media", mediaList.toMediaJsonArray())
@@ -79,7 +103,13 @@ class BackupManager(
             ?: error("无法写入所选位置")
 
         output.use { raw ->
-            ZipOutputStream(BufferedOutputStream(raw)).use { zip ->
+            // 要加密就先套一层：头写完再往里写 zip，GCM 的校验段在关闭时补上
+            val target = if (passphrase != null) {
+                BackupCrypto.encryptedOutput(raw, passphrase)
+            } else {
+                raw
+            }
+            ZipOutputStream(BufferedOutputStream(target)).use { zip ->
                 zip.putNextEntry(ZipEntry(JSON_ENTRY))
                 zip.write(json.toString().toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
@@ -88,6 +118,8 @@ class BackupManager(
                     addFileToZip(zip, media.filePath)
                     addFileToZip(zip, media.motionVideoPath)
                 }
+
+                avatarFile?.let { addFileToZip(zip, it.absolutePath, PROFILE_DIR_NAME) }
             }
         }
 
@@ -99,7 +131,42 @@ class BackupManager(
     }
 
     /** 从备份文件恢复，会先清空当前数据 */
-    suspend fun importFrom(uri: Uri): BackupSummary = withContext(Dispatchers.IO) {
+    /**
+     * 导入。
+     *
+     * 加密备份先在缓存目录里解成临时 zip，再走原来的流程；
+     * 临时文件在 finally 里删掉，不管成功失败都不留在手机上。
+     */
+    suspend fun importFrom(uri: Uri, passphrase: CharArray? = null): BackupSummary =
+        withContext(Dispatchers.IO) {
+            if (!isEncrypted(uri)) return@withContext importFromSource(uri)
+
+            val pass = passphrase ?: error("ENCRYPTED_BACKUP_NEEDS_PASSPHRASE")
+            val temp = File(context.cacheDir, "lifeledger_import.zip")
+            try {
+                val input = context.contentResolver.openInputStream(uri)
+                    ?: error("无法读取所选文件")
+                input.use { source ->
+                    temp.outputStream().use { target ->
+                        BackupCrypto.decrypt(source, target, pass)
+                    }
+                }
+                importFromSource(Uri.fromFile(temp))
+            } finally {
+                temp.delete()
+            }
+        }
+
+    /** 只读文件头几个字节，判断这份备份是不是加密的 */
+    fun isEncrypted(uri: Uri): Boolean = runCatching {
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            val header = ByteArray(BackupCrypto.MAGIC.size)
+            val read = input.read(header)
+            read == header.size && BackupCrypto.isEncrypted(header)
+        } ?: false
+    }.getOrDefault(false)
+
+    private suspend fun importFromSource(uri: Uri): BackupSummary = withContext(Dispatchers.IO) {
         // 第一趟：只读 backup.json，先知道这份备份里都有什么
         val json = JSONObject(readJsonEntry(uri))
 
@@ -107,6 +174,7 @@ class BackupManager(
         val notes = json.optJSONArray("notes").toNoteList()
         val mediaList = json.optJSONArray("media").toMediaList()
         val presets = json.optJSONArray("presets").toPresetList()
+        val profile = json.optJSONObject("profile")
 
         // 清空旧数据。注意这一步会删掉旧的媒体文件，
         // 所以必须放在解包新文件之前，否则会把刚恢复出来的文件一起删掉。
@@ -116,10 +184,14 @@ class BackupManager(
         extractMediaEntries(uri)
 
         if (achievements.isNotEmpty()) {
-            database.achievementDao().insertAchievements(achievements)
+            database.achievementDao().insertAchievements(
+                achievements.map { it.encrypted(settings.dataEncryptionEnabled.value) }
+            )
         }
         if (notes.isNotEmpty()) {
-            database.noteDao().insertNotes(notes)
+            database.noteDao().insertNotes(
+                notes.map { it.encrypted(settings.dataEncryptionEnabled.value) }
+            )
         }
         if (mediaList.isNotEmpty()) {
             database.mediaDao().insertMediaList(mediaList)
@@ -128,6 +200,8 @@ class BackupManager(
             // 图鉴内容本身不用恢复，这里只把「已解锁」和图标状态覆盖回来
             database.presetAchievementDao().insertAll(presets)
         }
+
+        restoreProfile(profile)
 
         BackupSummary(
             achievementCount = achievements.size,
@@ -142,6 +216,36 @@ class BackupManager(
         database.achievementDao().deleteAllAchievements()
         // 旧的媒体文件一并清掉，避免留下孤儿文件
         mediaDir.listFiles()?.forEach { it.delete() }
+        profileImages.clear()
+    }
+
+    /**
+     * 恢复个人资料。
+     *
+     * 老版本的备份里没有 profile 字段：这时昵称和签名保持不动，
+     * 但头像路径必须清掉——上面已经把头像目录清空了，留着就是个死路径。
+     */
+    private fun restoreProfile(profile: JSONObject?) {
+        if (profile == null) {
+            settings.setProfile(settings.nickname.value, settings.signature.value, null)
+            return
+        }
+
+        val relativeAvatar = if (profile.isNull("avatar")) {
+            null
+        } else {
+            profile.optString("avatar").takeIf { it.isNotBlank() }
+        }
+        val avatarPath = relativeAvatar
+            ?.let { File(context.filesDir, it) }
+            ?.takeIf { it.isFile }
+            ?.absolutePath
+
+        settings.setProfile(
+            nickname = profile.optString("nickname"),
+            signature = profile.optString("signature"),
+            avatarPath = avatarPath
+        )
     }
 
     /** 只读 zip 里的 backup.json，读完就结束，不用把整包解出来 */
@@ -165,7 +269,7 @@ class BackupManager(
         error("备份文件里没有 $JSON_ENTRY")
     }
 
-    /** 把 zip 里 media/ 下的文件解到应用私有目录 */
+    /** 把 zip 里 media/ 与 profile/ 下的文件解到应用私有目录 */
     private fun extractMediaEntries(uri: Uri) {
         val input = context.contentResolver.openInputStream(uri)
             ?: error("无法读取所选文件")
@@ -175,8 +279,10 @@ class BackupManager(
                 var entry = zip.nextEntry
                 while (entry != null) {
                     val name = entry.name
-                    if (name.startsWith("$MEDIA_DIR_NAME/") && !entry.isDirectory) {
-                        val target = File(mediaDir, File(name).name)
+                    val isContent = name.startsWith("$MEDIA_DIR_NAME/") ||
+                        name.startsWith("$PROFILE_DIR_NAME/")
+                    if (isContent && !entry.isDirectory) {
+                        val target = File(context.filesDir, name)
                         target.parentFile?.mkdirs()
                         target.outputStream().use { zip.copyTo(it) }
                     }
@@ -187,11 +293,15 @@ class BackupManager(
         }
     }
 
-    private fun addFileToZip(zip: ZipOutputStream, path: String?) {
+    private fun addFileToZip(
+        zip: ZipOutputStream,
+        path: String?,
+        directory: String = MEDIA_DIR_NAME
+    ) {
         if (path.isNullOrBlank()) return
         val file = File(path)
         if (!file.isFile) return
-        zip.putNextEntry(ZipEntry("$MEDIA_DIR_NAME/${file.name}"))
+        zip.putNextEntry(ZipEntry("$directory/${file.name}"))
         file.inputStream().use { it.copyTo(zip) }
         zip.closeEntry()
     }
@@ -359,5 +469,6 @@ class BackupManager(
         const val BACKUP_VERSION = 1
         const val JSON_ENTRY = "backup.json"
         const val MEDIA_DIR_NAME = "media"
+        const val PROFILE_DIR_NAME = ProfileImageStore.DIRECTORY_NAME
     }
 }
