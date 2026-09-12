@@ -106,6 +106,9 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_desc">Language used by the interface</string>
+    <string name="settings_language_system">System default</string>
     <string name="settings_display">Display</string>
     <string name="settings_display_desc">List density and font scaling</string>
     <string name="settings_animation">Animation</string>

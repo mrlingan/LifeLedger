@@ -15,9 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +32,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +51,7 @@ import com.Anchored.mylife.ui.components.AppSwitch
 import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
+import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
 
@@ -67,7 +76,8 @@ fun SettingsRoute(
         onBack = { navController.popBackStack() },
         onOpenBackup = { navController.navigate("backup") },
         onThemeModeChange = viewModel::setThemeMode,
-        onAppLockChange = viewModel::setAppLockEnabled
+        onAppLockChange = viewModel::setAppLockEnabled,
+        onLanguageChange = viewModel::setLanguage
     )
 }
 
@@ -77,10 +87,12 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenBackup: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
-    onAppLockChange: (Boolean) -> Unit
+    onAppLockChange: (Boolean) -> Unit,
+    onLanguageChange: (LanguageChoice) -> Unit
 ) {
     val colors = AppTheme.colors
     var showAbout by remember { mutableStateOf(false) }
+    var showLanguage by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = colors.background,
@@ -136,6 +148,14 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                AppDivider()
+                AppSettingRow(
+                    title = stringResource(R.string.settings_language),
+                    subtitle = stringResource(R.string.settings_language_desc),
+                    trailingText = stringResource(uiState.language.labelRes),
+                    showChevron = true,
+                    onClick = { showLanguage = true }
+                )
                 AppDivider()
                 AppSettingRow(
                     title = stringResource(R.string.settings_display),
@@ -224,6 +244,78 @@ fun SettingsScreen(
             appVersion = uiState.appVersion,
             onDismiss = { showAbout = false }
         )
+    }
+
+    if (showLanguage) {
+        LanguageDialog(
+            current = uiState.language,
+            onPick = { choice ->
+                showLanguage = false
+                onLanguageChange(choice)
+            },
+            onDismiss = { showLanguage = false }
+        )
+    }
+}
+
+/** 语言选择。用对话框而不是分段控件：以后加语言不用重排版面 */
+@Composable
+private fun LanguageDialog(
+    current: LanguageChoice,
+    onPick: (LanguageChoice) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AppDialog(
+        title = stringResource(R.string.settings_language),
+        onDismissRequest = onDismiss,
+        onConfirm = onDismiss,
+        confirmText = stringResource(R.string.common_got_it),
+        dismissText = null,
+        content = {
+            Column {
+                LanguageChoice.entries.forEachIndexed { index, choice ->
+                    if (index > 0) AppDivider()
+                    LanguageOptionRow(
+                        label = stringResource(choice.labelRes),
+                        selected = choice == current,
+                        onClick = { onPick(choice) }
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun LanguageOptionRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.sm))
+            .clickable(onClick = onClick)
+            .padding(vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = AppTheme.type.bodyLarge,
+            color = if (selected) colors.textPrimary else colors.textSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        if (selected) {
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+                tint = colors.accentStrong,
+                modifier = Modifier.size(Sizes.iconMd)
+            )
+        }
     }
 }
 
@@ -348,7 +440,8 @@ private fun SettingsPreview() {
             onBack = {},
             onOpenBackup = {},
             onThemeModeChange = {},
-            onAppLockChange = {}
+            onAppLockChange = {},
+            onLanguageChange = {}
         )
     }
 }

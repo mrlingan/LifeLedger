@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  应用支持的语言。
+
+  声明之后，Android 13 以上会在「系统设置 → 应用 → 人生账本 → 语言」里
+  列出这些语言；AppCompat 的 setApplicationLocales() 也会和系统这一项双向同步。
+  en 放在前面：它是默认资源（values/），不写进这里的话系统会当成不支持。
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en"/>
+    <locale android:name="zh"/>
+</locale-config>

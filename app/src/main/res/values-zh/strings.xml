@@ -106,6 +106,9 @@
     <string name="settings_theme_system">跟随系统</string>
     <string name="settings_theme_light">浅色</string>
     <string name="settings_theme_dark">深色</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_desc">界面文案使用的语言</string>
+    <string name="settings_language_system">跟随系统</string>
     <string name="settings_display">显示</string>
     <string name="settings_display_desc">列表密度、字号缩放</string>
     <string name="settings_animation">动画</string>
