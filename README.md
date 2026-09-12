@@ -1,5 +1,7 @@
 # LifeLedger · 人生账本
 
+**简体中文** | [English](README.en.md)
+
 > 把人生当成一款游戏，记录、整理、回顾你走过的每一步。
 
 一个**完全离线**的 Android 个人成就记录应用。没有账号、没有服务器、没有埋点，所有数据只存在你自己的手机上。
@@ -39,13 +41,13 @@
 - 核心数字：已完成成就数（44sp 主视觉）+ 环形完成度
 - **最近解锁**：横向滚动的收藏区
 - **人生数据**：成就总数、连续记录天数、近 7 天完成数
-- **继续完成**：还没完成的成就，最多展示三条
-- **全部成就**：支持「全部 / 已完成 / 进行中」筛选
-- 列表项右侧可一键切换完成状态
+- 底部一个「全部成就」入口，写着共有多少条、其中多少条进行中
+- 首页只做总览，**不放成就列表**：记录再多，首页的长度也不会变
 
-### 🏆 成就管理
+### 🏆 成就管理 · 独立于首页
 
-- 新建成就：标题、描述、图标选择
+- **全部成就**：独立的列表页，支持「全部 / 已完成 / 进行中」筛选（筛选器固定在顶部），列表项右侧可一键切换完成状态
+- 新建成就：可以从图鉴挑一条预填，也可以完全自己写（标题、描述、图标）
 - 编辑与删除（删除会级联清理它下面的笔记和媒体）
 - 标记完成 / 取消完成，**完成日期可以手动指定**（系统日历选择器）
 - 成就详情页：大图标 Hero 区、解锁时间线、相关数据、记事本
@@ -76,6 +78,7 @@
 
 - **主题**：跟随系统 / 浅色 / 深色
 - **应用锁**：指纹、面容或锁屏密码；离开超过 30 秒自动重新锁定
+- **语言**：跟随系统 / 简体中文 / English
 - 备份与恢复入口、当前数据量、关于信息
 
 ### 🎨 界面
@@ -89,13 +92,13 @@
 
 ## 截图
 
-> 截图还没补。把图片放进 `docs/screenshots/`，然后删掉下面这行注释符即可。
+| 首页 | 全部成就 | 成就详情 |
+|:---:|:---:|:---:|
+| ![首页](docs/screenshots/zh/home.png) | ![全部成就](docs/screenshots/zh/all-achievements.png) | ![成就详情](docs/screenshots/zh/detail.png) |
+| 成就图鉴 | 设置 | 深色模式 |
+| ![成就图鉴](docs/screenshots/zh/codex.png) | ![设置](docs/screenshots/zh/settings.png) | ![深色模式](docs/screenshots/zh/home-dark.png) |
 
-<!--
-| 首页 | 成就详情 | 成就图鉴 | 设置 |
-|:---:|:---:|:---:|:---:|
-| ![首页](docs/screenshots/home.png) | ![详情](docs/screenshots/detail.png) | ![图鉴](docs/screenshots/codex.png) | ![设置](docs/screenshots/settings.png) |
--->
+> 截图来自真机运行。英文界面截图见 [README.en.md](README.en.md)。
 
 ---
 
@@ -194,7 +197,10 @@ app/src/main/
 │       ├── components/    公共 UI 组件
 │       ├── theme/         设计系统
 │       ├── AchievementNavHost.kt    导航、主题、应用锁
-│       ├── HomeScreen.kt / HomeViewModel.kt
+│       ├── HomeScreen.kt / HomeViewModel.kt        首页总览（不放列表）
+│       ├── AllAchievementsScreen.kt / AchievementListViewModel.kt   全部成就列表
+│       ├── AchievementRow.kt        成就列表项（列表观感只有这一处实现）
+│       ├── AddOptionsSheet.kt       「从图鉴挑选 / 自己写」二选一弹层
 │       ├── AchievementDetailScreen.kt / ViewModel
 │       ├── AddAchievementScreen.kt
 │       ├── PresetAchievementScreen.kt / ViewModel
@@ -210,6 +216,7 @@ app/src/main/
     └── values-zh/        中文
 
 scripts/preset_i18n/      图鉴文案生成脚本（改完成就内容后重新生成 string 资源）
+docs/screenshots/         README 用的界面截图（zh/ 与 en/ 各一套）
 ```
 
 ---
