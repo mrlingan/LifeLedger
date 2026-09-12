@@ -31,3 +31,6 @@ local.properties
 # 崩溃日志 / 其他
 *.hprof
 .vs/
+
+# 截图流水线的临时产物（数据库、照片、截图原图、UI dump）
+/scripts/screenshots/work/

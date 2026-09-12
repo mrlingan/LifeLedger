@@ -247,6 +247,7 @@ app/src/main/
     └── values-zh/        Chinese
 
 scripts/preset_i18n/      codex text generator (re-run after editing achievement content)
+scripts/screenshots/      pipeline that generates the README screenshots (random demo data + capture + checks)
 docs/screenshots/         UI screenshots for the README (zh/ and en/ sets)
 ```
 
