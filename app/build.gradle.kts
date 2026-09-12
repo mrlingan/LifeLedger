@@ -12,8 +12,9 @@ android {
         applicationId = "com.Anchored.mylife"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // 每次发版都要 +1，否则已经装过旧版的人覆盖安装会失败
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
