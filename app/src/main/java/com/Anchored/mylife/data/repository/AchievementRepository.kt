@@ -19,6 +19,8 @@ class AchievementRepository(
     suspend fun getAllAchievements(): List<Achievement> =
         achievementDao.getAllAchievements()
 
+    suspend fun countAchievements(): Int = achievementDao.countAchievements()
+
     suspend fun getAchievementById(achievementId: Long): Achievement? =
         achievementDao.getAchievementById(achievementId)
 
@@ -30,6 +32,15 @@ class AchievementRepository(
 
     suspend fun insertAchievement(achievement: Achievement): Long =
         achievementDao.insertAchievement(achievement)
+
+    /**
+     * 批量写入（首次选择「用预设成就开始」时一次写 109 条）。
+     * 和图鉴里的单条挑选走同一个入口，所以两边产生的数据结构完全一致。
+     */
+    suspend fun insertAchievements(items: List<Achievement>) {
+        if (items.isEmpty()) return
+        achievementDao.insertAchievements(items)
+    }
 
     /**
      * 新建成就。
