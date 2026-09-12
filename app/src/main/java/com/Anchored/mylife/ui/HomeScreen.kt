@@ -21,20 +21,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,31 +36,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.data.database.Achievement
-import com.Anchored.mylife.ui.components.AchievementCard
-import com.Anchored.mylife.ui.components.AchievementStatus
 import com.Anchored.mylife.ui.components.AnimatedMetricNumber
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppCard
-import com.Anchored.mylife.ui.components.AppCardTone
-import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.components.AppProgressRing
-import com.Anchored.mylife.ui.components.AppSegmentedControl
+import com.Anchored.mylife.ui.components.AppSettingRow
 import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.components.AppTopBarStyle
 import com.Anchored.mylife.ui.components.AppVerticalDivider
 import com.Anchored.mylife.ui.components.EmptyState
 import com.Anchored.mylife.ui.components.SectionHeader
 import com.Anchored.mylife.ui.components.StatTile
-import com.Anchored.mylife.ui.components.appearAnimation
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
 import com.Anchored.mylife.ui.theme.Radius
@@ -81,10 +71,12 @@ import kotlin.math.roundToInt
 /**
  * 首页：人生 Dashboard。
  *
- * 结构是「总览 → 重点 → 最近 → 数据 → 细节」：
- *   问候 → 核心数字与完成度 → 最近解锁 → 人生数据 → 继续完成 → 全部成就
+ * 只有「总览」，从上到下：
+ *   问候 → 核心数字与完成度 → 最近解锁 → 人生数据 → 全部成就入口
  *
- * 刻意没有 FAB，主操作放在顶栏；页面不再用大色块和渐变。
+ * 刻意不放成就列表：首页要回答的是「我已经完成了多少」，
+ * 列表（含筛选和逐条勾选）在独立的「全部成就」页。
+ * 也不放 FAB，主操作放在顶栏。
  */
 @Composable
 fun HomeRoute(
@@ -97,11 +89,10 @@ fun HomeRoute(
     HomeScreen(
         uiState = uiState,
         onAchievementClick = { id -> navController.navigate("achievement_detail/$id") },
-        onToggleCompleted = viewModel::toggleCompleted,
-        onFilterChange = viewModel::setFilter,
         onAddClick = { showAddOptions = true },
         onOpenCodex = { navController.navigate("preset_achievements?pick=false") },
-        onOpenSettings = { navController.navigate("settings") }
+        onOpenSettings = { navController.navigate("settings") },
+        onOpenAllAchievements = { navController.navigate("all_achievements") }
     )
 
     if (showAddOptions) {
@@ -123,11 +114,10 @@ fun HomeRoute(
 fun HomeScreen(
     uiState: HomeUiState,
     onAchievementClick: (Long) -> Unit,
-    onToggleCompleted: (Long) -> Unit,
-    onFilterChange: (AchievementFilter) -> Unit,
     onAddClick: () -> Unit,
     onOpenCodex: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenAllAchievements: () -> Unit
 ) {
     val colors = AppTheme.colors
 
@@ -171,7 +161,10 @@ fun HomeScreen(
                         title = stringResource(R.string.home_empty_title),
                         description = stringResource(R.string.home_empty_desc),
                         action = {
-                            AppButton(text = stringResource(R.string.home_empty_action), onClick = onAddClick)
+                            AppButton(
+                                text = stringResource(R.string.home_empty_action),
+                                onClick = onAddClick
+                            )
                         }
                     )
                 }
@@ -204,87 +197,11 @@ fun HomeScreen(
                     LifeStatsSection(uiState = uiState)
                 }
 
-                if (uiState.inProgressPreview.isNotEmpty()) {
-                    item(key = "in_progress_header") {
-                        SectionHeader(
-                            title = stringResource(R.string.home_continue),
-                            subtitle = stringResource(R.string.home_continue_sub),
-                            modifier = Modifier.padding(
-                                start = Sizes.gutter,
-                                end = Sizes.gutter,
-                                top = Spacing.xxl,
-                                bottom = Spacing.xs
-                            )
-                        )
-                    }
-                    itemsIndexed(
-                        items = uiState.inProgressPreview,
-                        key = { _, item -> "progress_${item.id}" }
-                    ) { index, achievement ->
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = Sizes.gutter)
-                                .appearAnimation(index)
-                        ) {
-                            AchievementRow(
-                                achievement = achievement,
-                                onClick = { onAchievementClick(achievement.id) },
-                                onToggleCompleted = { onToggleCompleted(achievement.id) }
-                            )
-                        }
-                    }
-                }
-
-                item(key = "all_header") {
-                    SectionHeader(
-                        title = stringResource(R.string.home_all),
-                        subtitle = stringResource(R.string.home_count_items, uiState.totalCount),
-                        modifier = Modifier.padding(
-                            start = Sizes.gutter,
-                            end = Sizes.gutter,
-                            top = Spacing.xxl,
-                            bottom = Spacing.md
-                        )
+                item(key = "all_achievements_entry") {
+                    AllAchievementsEntry(
+                        uiState = uiState,
+                        onClick = onOpenAllAchievements
                     )
-                }
-
-                item(key = "filter") {
-                    AppSegmentedControl(
-                    options = AchievementFilter.entries.map {
-                        "${stringResource(it.labelRes)} ${uiState.countOf(it)}"
-                    },
-                        selectedIndex = AchievementFilter.entries.indexOf(uiState.filter),
-                        onSelect = { index ->
-                            onFilterChange(AchievementFilter.entries[index])
-                        },
-                        modifier = Modifier.padding(horizontal = Sizes.gutter)
-                    )
-                }
-
-                if (uiState.visibleAchievements.isEmpty()) {
-                    item(key = "filter_empty") {
-                        EmptyState(title = stringResource(R.string.home_filter_empty))
-                    }
-                } else {
-                    itemsIndexed(
-                        items = uiState.visibleAchievements,
-                        key = { _, item -> "all_${item.id}" }
-                    ) { index, achievement ->
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = Sizes.gutter)
-                                .appearAnimation(index)
-                        ) {
-                            AchievementRow(
-                                achievement = achievement,
-                                onClick = { onAchievementClick(achievement.id) },
-                                onToggleCompleted = { onToggleCompleted(achievement.id) }
-                            )
-                            if (index < uiState.visibleAchievements.lastIndex) {
-                                AppDivider()
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -468,130 +385,36 @@ private fun LifeStatsSection(uiState: HomeUiState) {
     }
 }
 
+/**
+ * 「全部成就」入口。
+ *
+ * 只放一个入口，不把列表铺在首页——列表有自己的一页，
+ * 首页的篇幅因此不再随成就数量增长。
+ */
 @Composable
-private fun AchievementRow(
-    achievement: Achievement,
-    onClick: () -> Unit,
-    onToggleCompleted: () -> Unit
+private fun AllAchievementsEntry(
+    uiState: HomeUiState,
+    onClick: () -> Unit
 ) {
-    val colors = AppTheme.colors
-
-    AchievementCard(
-        title = achievement.title,
-        description = achievement.description.takeIf { it.isNotBlank() },
-        icon = {
-            Text(
-                text = achievement.iconEmoji,
-                style = AppTheme.type.numberMedium
-            )
-        },
-        status = if (achievement.isCompleted) {
-            AchievementStatus.Completed
-        } else {
-            AchievementStatus.InProgress
-        },
-        meta = achievement.metaText(),
-        onClick = onClick,
-        trailing = {
-            AppIconButton(
-                icon = Icons.Outlined.CheckCircle,
-                contentDescription = if (achievement.isCompleted) stringResource(R.string.detail_undo_complete) else stringResource(R.string.detail_timeline_done),
-                onClick = onToggleCompleted,
-                tint = if (achievement.isCompleted) colors.accent else colors.textTertiary
-            )
-        }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddOptionsSheet(
-    onDismiss: () -> Unit,
-    onPickFromCodex: () -> Unit,
-    onWriteCustom: () -> Unit
-) {
-    val colors = AppTheme.colors
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surfaceElevated,
-        shape = RoundedCornerShape(topStart = Radius.hero, topEnd = Radius.hero)
+    AppCard(
+        modifier = Modifier.padding(
+            start = Sizes.gutter,
+            end = Sizes.gutter,
+            top = Spacing.xxl
+        ),
+        // 内部交给 AppSettingRow 排版，卡片本身不再叠一层内边距
+        contentPadding = PaddingValues(0.dp),
+        onClick = onClick
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = Sizes.gutter,
-                    end = Sizes.gutter,
-                    bottom = Spacing.xxl
-                )
-        ) {
-            Text(
-                text = stringResource(R.string.home_sheet_title),
-                style = AppTheme.type.h3,
-                color = colors.textPrimary
-            )
-            Spacer(modifier = Modifier.height(Spacing.xs))
-            Text(
-                text = stringResource(R.string.home_sheet_desc),
-                style = AppTheme.type.bodySmall,
-                color = colors.textSecondary
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.lg))
-
-            AppCard(onClick = onPickFromCodex, tone = AppCardTone.Soft) {
-                OptionRow(
-                    icon = Icons.Outlined.Star,
-                    title = stringResource(R.string.home_sheet_codex),
-                    subtitle = stringResource(R.string.home_sheet_codex_desc)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.sm))
-
-            AppCard(onClick = onWriteCustom, tone = AppCardTone.Soft) {
-                OptionRow(
-                    icon = Icons.Outlined.Add,
-                    title = stringResource(R.string.home_sheet_custom),
-                    subtitle = stringResource(R.string.home_sheet_custom_desc)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String
-) {
-    val colors = AppTheme.colors
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = colors.accent,
-            modifier = Modifier.size(Sizes.iconLg)
+        AppSettingRow(
+            title = stringResource(R.string.home_all),
+            subtitle = stringResource(
+                R.string.home_all_desc,
+                uiState.totalCount,
+                uiState.inProgressCount
+            ),
+            showChevron = true
         )
-
-        Spacer(modifier = Modifier.width(Spacing.md))
-
-        Column {
-            Text(
-                text = title,
-                style = AppTheme.type.bodyLarge,
-                color = colors.textPrimary
-            )
-            Spacer(modifier = Modifier.height(Spacing.xxs))
-            Text(
-                text = subtitle,
-                style = AppTheme.type.bodySmall,
-                color = colors.textSecondary
-            )
-        }
     }
 }
 
@@ -611,16 +434,6 @@ private fun rememberTodayText(): String {
         SimpleDateFormat(pattern, locale).format(Date())
     }
     return "$date · $greeting"
-}
-
-private fun formatDay(millis: Long): String =
-    SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(Date(millis))
-
-@Composable
-private fun Achievement.metaText(): String = if (isCompleted && completedDate != null) {
-    stringResource(R.string.home_meta_completed, formatDay(completedDate))
-} else {
-    stringResource(R.string.home_meta_created, formatDay(createdDate))
 }
 
 // ---------------------------------------------------------------------------
@@ -657,29 +470,28 @@ private val previewHomeAchievements = listOf(
     )
 )
 
-@Preview(showBackground = true, heightDp = 1100, name = "首页 · 有数据")
+private val previewHomeState = HomeUiState(
+    isLoaded = true,
+    totalCount = 12,
+    completedCount = 5,
+    inProgressCount = 7,
+    completionRate = 5f / 12f,
+    streakDays = 9,
+    unlockedThisWeek = 3,
+    recentlyUnlocked = previewHomeAchievements.filter { it.isCompleted }
+)
+
+@Preview(showBackground = true, heightDp = 900, name = "首页 · 有数据")
 @Composable
 private fun HomeScreenPreview() {
     LifeLedgerTheme {
         HomeScreen(
-            uiState = HomeUiState(
-                all = previewHomeAchievements,
-                isLoaded = true,
-                totalCount = 12,
-                completedCount = 5,
-                inProgressCount = 7,
-                completionRate = 5f / 12f,
-                streakDays = 9,
-                unlockedThisWeek = 3,
-                recentlyUnlocked = previewHomeAchievements.filter { it.isCompleted },
-                inProgress = previewHomeAchievements.filterNot { it.isCompleted }
-            ),
+            uiState = previewHomeState,
             onAchievementClick = {},
-            onToggleCompleted = {},
-            onFilterChange = {},
             onAddClick = {},
             onOpenCodex = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onOpenAllAchievements = {}
         )
     }
 }
@@ -691,38 +503,25 @@ private fun HomeScreenEmptyPreview() {
         HomeScreen(
             uiState = HomeUiState(isLoaded = true),
             onAchievementClick = {},
-            onToggleCompleted = {},
-            onFilterChange = {},
             onAddClick = {},
             onOpenCodex = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onOpenAllAchievements = {}
         )
     }
 }
 
-@Preview(showBackground = true, heightDp = 1100, name = "首页 · 深色")
+@Preview(showBackground = true, heightDp = 900, name = "首页 · 深色")
 @Composable
 private fun HomeScreenDarkPreview() {
     LifeLedgerTheme(darkTheme = true) {
         HomeScreen(
-            uiState = HomeUiState(
-                all = previewHomeAchievements,
-                isLoaded = true,
-                totalCount = 12,
-                completedCount = 5,
-                inProgressCount = 7,
-                completionRate = 5f / 12f,
-                streakDays = 9,
-                unlockedThisWeek = 3,
-                recentlyUnlocked = previewHomeAchievements.filter { it.isCompleted },
-                inProgress = previewHomeAchievements.filterNot { it.isCompleted }
-            ),
+            uiState = previewHomeState,
             onAchievementClick = {},
-            onToggleCompleted = {},
-            onFilterChange = {},
             onAddClick = {},
             onOpenCodex = {},
-            onOpenSettings = {}
+            onOpenSettings = {},
+            onOpenAllAchievements = {}
         )
     }
 }

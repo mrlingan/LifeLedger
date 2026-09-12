@@ -23,9 +23,8 @@
     <string name="home_stat_streak">连续记录</string>
     <string name="home_stat_days">天</string>
     <string name="home_stat_week">近 7 天</string>
-    <string name="home_continue">继续完成</string>
-    <string name="home_continue_sub">已经记下，还没完成</string>
     <string name="home_all">全部成就</string>
+    <string name="home_all_desc">共 %1$d 条 · %2$d 条进行中</string>
     <string name="home_empty_title">还没有记录任何成就</string>
     <string name="home_empty_desc">人生里的每一件小事都值得被记住。写下第一件，从今天开始。</string>
     <string name="home_empty_action">记录第一件成就</string>

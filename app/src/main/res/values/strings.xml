@@ -23,9 +23,8 @@
     <string name="home_stat_streak">Streak</string>
     <string name="home_stat_days">days</string>
     <string name="home_stat_week">Last 7 days</string>
-    <string name="home_continue">Keep going</string>
-    <string name="home_continue_sub">Saved, not finished yet</string>
     <string name="home_all">All achievements</string>
+    <string name="home_all_desc">%1$d recorded · %2$d in progress</string>
     <string name="home_empty_title">No achievements yet</string>
     <string name="home_empty_desc">Every small thing in life is worth remembering. Start with the first one today.</string>
     <string name="home_empty_action">Record your first achievement</string>

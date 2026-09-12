@@ -90,8 +90,10 @@ fun PresetCodexRoute(
         onItemClick = { preset ->
             if (pickMode) {
                 // 挑选模式：带着这条成就回新建页，标题描述图标都填好，还能改
+                // 回退到「把图鉴拉起来的那一页」——可能点进来的是首页，也可能是全部成就页
+                val backTarget = navController.previousBackStackEntry?.destination?.route ?: "home"
                 navController.navigate("add_achievement?presetId=${preset.id}") {
-                    popUpTo("achievement_list") { inclusive = false }
+                    popUpTo(backTarget) { inclusive = false }
                 }
             } else {
                 selectedId = preset.id

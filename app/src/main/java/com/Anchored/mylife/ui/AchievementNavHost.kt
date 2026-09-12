@@ -59,7 +59,8 @@ fun AchievementNavHost(
             ) {
                 NavHost(
                     navController = navController,
-                    startDestination = "achievement_list",
+                    // 首页只负责总览；成就列表独立在 "all_achievements"
+                    startDestination = "home",
                     // 克制转场：小幅横移 + 淡入淡出，不用整屏滑动
                     enterTransition = {
                         fadeIn(tween(AppMotion.Medium)) +
@@ -96,8 +97,12 @@ fun AchievementNavHost(
                             )
                     }
                 ) {
-                    composable("achievement_list") {
+                    composable("home") {
                         HomeRoute(navController = navController)
+                    }
+
+                    composable("all_achievements") {
+                        AllAchievementsRoute(navController = navController)
                     }
 
                     composable(
