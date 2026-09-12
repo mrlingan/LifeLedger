@@ -12,7 +12,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import com.Anchored.mylife.ui.theme.AppMotion
+import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Spacing
+import com.Anchored.mylife.data.settings.MotionChoice
 
 private const val STAGGER_STEPS = 8
 private const val STAGGER_STEP_MILLIS = 40
@@ -31,14 +33,23 @@ private const val STAGGER_STEP_MILLIS = 40
  */
 @Composable
 fun Modifier.appearAnimation(index: Int = 0): Modifier {
+    // 动效关掉时连淡入都不做，直接是"就在那里"
+    val motion = AppTheme.display.motion
+    if (motion == MotionChoice.OFF) return this
+
     var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { appeared = true }
 
     val progress by animateFloatAsState(
         targetValue = if (appeared) 1f else 0f,
         animationSpec = tween(
-            durationMillis = AppMotion.Slow,
-            delayMillis = (index % STAGGER_STEPS) * STAGGER_STEP_MILLIS,
+            durationMillis = AppMotion.duration(AppMotion.Slow),
+            // 精简模式下不再错峰，列表是一起落下来
+            delayMillis = if (motion == MotionChoice.FULL) {
+                (index % STAGGER_STEPS) * STAGGER_STEP_MILLIS
+            } else {
+                0
+            },
             easing = AppMotion.Decelerate
         ),
         label = "appearAnimation"

@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.Anchored.mylife.data.database.Media
+import com.Anchored.mylife.data.database.AchievementMedia
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -44,6 +45,20 @@ interface MediaDao {
 
     @Query("SELECT * FROM media ORDER BY createdDate ASC")
     suspend fun getAllMedia(): List<Media>
+
+    /** 首页最近解锁卡片：所有图片，按时间正序，调用方取每条成就的第一张 */
+    @Query(
+        """
+        SELECT notes.achievementId AS achievementId,
+               media.filePath AS filePath,
+               media.fileType AS fileType
+        FROM media
+        INNER JOIN notes ON notes.id = media.noteId
+        WHERE media.fileType = 'image'
+        ORDER BY media.createdDate ASC
+        """
+    )
+    fun observeAchievementImages(): Flow<List<AchievementMedia>>
 
     @Query("SELECT * FROM media WHERE id = :mediaId LIMIT 1")
     suspend fun getMediaById(mediaId: Long): Media?

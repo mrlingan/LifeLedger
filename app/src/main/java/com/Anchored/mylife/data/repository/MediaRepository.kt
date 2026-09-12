@@ -2,6 +2,7 @@ package com.Anchored.mylife.data.repository
 
 import com.Anchored.mylife.data.dao.MediaDao
 import com.Anchored.mylife.data.database.Media
+import com.Anchored.mylife.data.database.AchievementMedia
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 
@@ -34,6 +35,10 @@ class MediaRepository(
 
     fun observeMediaByAchievementId(achievementId: Long): Flow<List<Media>> =
         mediaDao.observeMediaByAchievementId(achievementId)
+
+    /** 首页最近解锁卡片的封面图，按时间正序（每条成就在界面层取第一张） */
+    fun observeAchievementImages(): Flow<List<AchievementMedia>> =
+        mediaDao.observeAchievementImages()
 
     suspend fun getMediaById(mediaId: Long): Media? =
         mediaDao.getMediaById(mediaId)

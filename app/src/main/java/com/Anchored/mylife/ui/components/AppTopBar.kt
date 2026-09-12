@@ -125,15 +125,6 @@ fun AppTopBar(
                     actions()
                 }
 
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = AppTheme.type.caption,
-                        color = colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                }
-
                 Text(
                     text = title,
                     style = AppTheme.type.h1,
@@ -141,6 +132,15 @@ fun AppTopBar(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        text = subtitle,
+                        style = AppTheme.type.bodySmall,
+                        color = colors.textSecondary
+                    )
+                }
             }
         }
     }

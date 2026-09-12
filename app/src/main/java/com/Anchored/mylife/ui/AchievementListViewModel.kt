@@ -30,6 +30,8 @@ enum class AchievementFilter(@param:StringRes val labelRes: Int) {
 data class AchievementListUiState(
     val all: List<Achievement> = emptyList(),
     val filter: AchievementFilter = AchievementFilter.ALL,
+    /** 设置里打开「完成前二次确认」时才需要弹一次确认 */
+    val confirmCompletion: Boolean = false,
     val isLoaded: Boolean = false
 ) {
     val totalCount: Int get() = all.size
@@ -53,15 +55,18 @@ data class AchievementListUiState(
 class AchievementListViewModel(application: Application) : AndroidViewModel(application) {
 
     private val achievementRepository = RepositoryProvider.get(application).achievementRepository
+    private val settings = RepositoryProvider.get(application).settings
     private val filter = MutableStateFlow(AchievementFilter.ALL)
 
     val uiState: StateFlow<AchievementListUiState> = combine(
         achievementRepository.observeAllAchievements(),
-        filter
-    ) { achievements, currentFilter ->
+        filter,
+        settings.confirmCompletion
+    ) { achievements, currentFilter, confirm ->
         AchievementListUiState(
             all = achievements,
             filter = currentFilter,
+            confirmCompletion = confirm,
             isLoaded = true
         )
     }.stateIn(

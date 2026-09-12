@@ -25,6 +25,7 @@ import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.RarityTier
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
+import com.Anchored.mylife.ui.theme.listRowPadding
 
 /**
  * 列表里的呈现方式。
@@ -70,7 +71,8 @@ fun AchievementCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = Spacing.lg),
+                // 列表密度可调：紧凑 / 标准 / 宽松
+                .padding(vertical = listRowPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -90,7 +92,9 @@ fun AchievementCard(
                     text = title,
                     style = AppTheme.type.h3,
                     color = titleColor,
-                    maxLines = 1,
+                    // 两行：成就名称往往是这句话里唯一能确认"是哪一条"的信息，
+                    // 截成一行会让长标题失去辨识度
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
 
@@ -100,7 +104,7 @@ fun AchievementCard(
                         text = description,
                         style = AppTheme.type.bodySmall,
                         color = colors.textSecondary,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }

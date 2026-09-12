@@ -31,6 +31,7 @@ import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.components.AppSegmentedControl
 import com.Anchored.mylife.ui.components.AppTopBar
+import com.Anchored.mylife.ui.components.CompletionConfirmDialog
 import com.Anchored.mylife.ui.components.EmptyState
 import com.Anchored.mylife.ui.components.appearAnimation
 import com.Anchored.mylife.ui.theme.AppTheme
@@ -55,7 +56,8 @@ fun AllAchievementsRoute(
 
     AllAchievementsScreen(
         uiState = uiState,
-        onBack = { navController.popBackStack() },
+        // 这一页现在是底部导航的 tab，不需要返回箭头
+        onBack = null,
         onAchievementClick = { id -> navController.navigate("achievement_detail/$id") },
         onToggleCompleted = viewModel::toggleCompleted,
         onFilterChange = viewModel::setFilter,
@@ -80,13 +82,16 @@ fun AllAchievementsRoute(
 @Composable
 fun AllAchievementsScreen(
     uiState: AchievementListUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAchievementClick: (Long) -> Unit,
     onToggleCompleted: (Long) -> Unit,
     onFilterChange: (AchievementFilter) -> Unit,
     onAddClick: () -> Unit
 ) {
     val colors = AppTheme.colors
+    val completionFeedback = rememberCompletionFeedback()
+    // 打开「完成前二次确认」时，这里暂存等待确认的那一条
+    var pendingCompleteId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
         containerColor = colors.background,
@@ -96,14 +101,7 @@ fun AllAchievementsScreen(
         topBar = {
             AppTopBar(
                 title = stringResource(R.string.home_all),
-                onBack = onBack,
-                actions = {
-                    AppIconButton(
-                        icon = Icons.Outlined.Add,
-                        contentDescription = stringResource(R.string.add_title),
-                        onClick = onAddClick
-                    )
-                }
+                onBack = onBack
             )
         }
     ) { innerPadding ->
@@ -162,7 +160,15 @@ fun AllAchievementsScreen(
                             AchievementRow(
                                 achievement = achievement,
                                 onClick = { onAchievementClick(achievement.id) },
-                                onToggleCompleted = { onToggleCompleted(achievement.id) }
+                                onToggleCompleted = {
+                                    if (!achievement.isCompleted && uiState.confirmCompletion) {
+                                        pendingCompleteId = achievement.id
+                                    } else {
+                                        // 只有"变成已完成"才给反馈，取消完成保持安静
+                                        if (!achievement.isCompleted) completionFeedback()
+                                        onToggleCompleted(achievement.id)
+                                    }
+                                }
                             )
                             if (index < uiState.visibleAchievements.lastIndex) {
                                 AppDivider()
@@ -172,5 +178,16 @@ fun AllAchievementsScreen(
                 }
             }
         }
+    }
+
+    pendingCompleteId?.let { id ->
+        CompletionConfirmDialog(
+            onConfirm = {
+                pendingCompleteId = null
+                completionFeedback()
+                onToggleCompleted(id)
+            },
+            onDismiss = { pendingCompleteId = null }
+        )
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.Alignment
 import com.Anchored.mylife.ui.theme.AppMotion
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Spacing
@@ -70,6 +72,9 @@ fun AnimatedMetricNumber(
  *
  * 刻意不带卡片外框——几个 StatTile 并排放在一个容器里，
  * 而不是每个数字各占一张卡。
+ *
+ * 内容一律居中对齐：这些数据块总是几个并排出现（详情页的「相关数据」、
+ * 备份页的「当前数据」），按左对齐会让每列各自从左边起排、看起来参差不齐。
  */
 @Composable
 fun StatTile(
@@ -80,24 +85,30 @@ fun StatTile(
     emphasized: Boolean = false,
     valueColor: Color = AppTheme.colors.textPrimary
 ) {
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
             text = value,
             style = if (emphasized) AppTheme.type.numberLarge else AppTheme.type.numberMedium,
-            color = valueColor
+            color = valueColor,
+            textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(Spacing.xs))
         Text(
             text = label,
             style = AppTheme.type.bodySmall,
-            color = AppTheme.colors.textSecondary
+            color = AppTheme.colors.textSecondary,
+            textAlign = TextAlign.Center
         )
         if (supporting != null) {
             Spacer(modifier = Modifier.height(Spacing.xxs))
             Text(
                 text = supporting,
                 style = AppTheme.type.caption,
-                color = AppTheme.colors.textTertiary
+                color = AppTheme.colors.textTertiary,
+                textAlign = TextAlign.Center
             )
         }
     }

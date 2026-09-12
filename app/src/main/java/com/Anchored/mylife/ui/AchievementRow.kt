@@ -12,9 +12,6 @@ import com.Anchored.mylife.ui.components.AchievementCard
 import com.Anchored.mylife.ui.components.AchievementStatus
 import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.theme.AppTheme
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 成就列表项：左侧图标、中间标题与时间、右侧一键切换完成状态。
@@ -44,7 +41,8 @@ internal fun AchievementRow(
         } else {
             AchievementStatus.InProgress
         },
-        meta = achievement.metaText(),
+        // 不在预览里显示时间：想看"记录于 / 完成于 xx"请点进详情
+        meta = null,
         onClick = onClick,
         trailing = {
             AppIconButton(
@@ -59,15 +57,4 @@ internal fun AchievementRow(
             )
         }
     )
-}
-
-/** 列表里的日期格式，全站统一 yyyy.MM.dd */
-internal fun formatDay(millis: Long): String =
-    SimpleDateFormat("yyyy.MM.dd", Locale.getDefault()).format(Date(millis))
-
-@Composable
-internal fun Achievement.metaText(): String = if (isCompleted && completedDate != null) {
-    stringResource(R.string.home_meta_completed, formatDay(completedDate))
-} else {
-    stringResource(R.string.home_meta_created, formatDay(createdDate))
 }

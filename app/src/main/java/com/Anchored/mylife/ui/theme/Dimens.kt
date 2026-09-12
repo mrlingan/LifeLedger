@@ -61,10 +61,28 @@ data class AppSizes(
     val progressRing: Dp = 4.dp,
     /** 环形进度的默认直径 */
     val progressRingSize: Dp = 96.dp,
+    /** 分类进度圆环直径 */
+    val categoryRing: Dp = 56.dp,
+    /** 分类进度项宽度：圆环 + 标签横向排布时的统一列宽 */
+    val categoryTile: Dp = 76.dp,
+    /** 最近解锁的卡片宽度（横向排布，一屏看到两张多一点） */
+    val recentCard: Dp = 168.dp,
+    /**
+     * 图鉴单元的最小宽度。
+     *
+     * 图鉴条目是「徽记在左、标题与介绍在右」的横排，太窄会把标题挤断，
+     * 所以这个值定得比较宽：手机上一列（其实就是一份档案索引），
+     * 平板或横屏自动变两列。
+     */
+    val codexCell: Dp = 320.dp,
     /** 最近解锁的横滑卡片宽度 */
     val recentTile: Dp = 96.dp,
     /** 紧凑顶栏高度 */
     val topBar: Dp = 56.dp,
+    /** 底部导航内容高度（不含系统导航栏内边距） */
+    val bottomBar: Dp = 56.dp,
+    /** 底部导航中间那个主操作按钮的边长 */
+    val bottomBarAction: Dp = 44.dp,
     /** 开关：轨道宽 / 轨道高 / 滑块直径 */
     val switchWidth: Dp = 44.dp,
     val switchHeight: Dp = 26.dp,
