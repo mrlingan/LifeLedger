@@ -5,8 +5,8 @@
       这里只需要一个没有 ActionBar 的壳，避免顶部多出一条系统栏。
     -->
     <style name="Theme.LifeLedger" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- 启动瞬间的背景色，与首页顶部渐变起始色一致，避免白屏闪烁 -->
-        <item name="android:windowBackground">#FF5B4CE0</item>
+        <!-- 启动瞬间的背景色，与 AppTheme.colors.background 的浅色值一致，避免白屏闪烁 -->
+        <item name="android:windowBackground">#FFF5F7F6</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>

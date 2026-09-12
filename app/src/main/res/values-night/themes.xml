@@ -2,7 +2,8 @@
 <resources>
     <!-- 深色模式沿用同一个 Compose 主题，这里保持一致的窗口配置 -->
     <style name="Theme.LifeLedger" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:windowBackground">#FF5B4CE0</item>
+        <!-- 启动瞬间的背景色，与 AppTheme.colors.background 的深色值一致 -->
+        <item name="android:windowBackground">#FF0F1416</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>

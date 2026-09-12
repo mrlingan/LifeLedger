@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!--
+      自适应图标的背景层。前景已经盖满可见区，这个颜色只在启动器的视差
+      和极端形状遮罩下露出来，所以取的是主图的深墨绿底色。
+      界面配色由 ui/theme/Color.kt 负责，不在这里定义。
+    -->
+    <color name="ic_launcher_background">#FF152427</color>
 </resources>
