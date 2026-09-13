@@ -250,7 +250,6 @@ app/src/main/
     └── values-zh/        中文
 
 scripts/preset_i18n/      图鉴文案生成脚本（改完成就内容后重新生成 string 资源）
-scripts/screenshots/      README 截图的生成流水线（随机演示数据 + 截图 + 校验）
 docs/screenshots/         README 用的界面截图（zh/ 与 en/ 各一套）
 ```
 
