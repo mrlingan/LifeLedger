@@ -63,7 +63,7 @@ fun ProfileRoute(
         onNicknameChange = viewModel::setNickname,
         onSignatureChange = viewModel::setSignature,
         onPickAvatar = {
-            avatarPicker.launch(
+            avatarPicker.launchExternal(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         },
@@ -88,7 +88,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),

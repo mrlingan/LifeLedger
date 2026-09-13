@@ -18,6 +18,8 @@ import com.Anchored.mylife.ui.theme.Radius
  * 全部走设计系统，所以看起来不是系统默认弹窗。
  *
  * @param destructive 删除这类不可逆操作，确认按钮会变成危险色
+ * @param content 正文。注意宿主 AlertDialog 的正文槽是个 Box：
+ *   要放多段内容时自己包一层 Column，否则会叠在一起
  */
 @Composable
 fun AppDialog(

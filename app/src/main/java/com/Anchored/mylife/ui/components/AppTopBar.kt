@@ -35,7 +35,7 @@ enum class AppTopBarStyle {
  * 统一顶栏，替代原先三个各自实现的 Header（HomeHeader / CodexHeader / FormHeader）。
  *
  * - `Large`：跟随内容滚动的大标题，无底色，靠留白建立层级
- * - `Compact`：固定高度，surface 底色 + 底部分隔线，不用阴影
+ * - `Compact`：固定高度，半透明 surface + 细分隔线，贴近 iOS 导航栏的层次
  *
  * @param withStatusBarPadding 放在 Scaffold 的 topBar 里时保持 true；
  *        如果外层已经处理过状态栏内边距，传 false。
@@ -58,7 +58,7 @@ fun AppTopBar(
             Box(
                 modifier = modifier
                     .fillMaxWidth()
-                    .background(colors.surface)
+                    .background(colors.surface.copy(alpha = 0.90f))
                     .then(insets)
             ) {
                 Row(

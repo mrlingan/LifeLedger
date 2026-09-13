@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Icon
@@ -20,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
@@ -48,11 +52,16 @@ fun AppTextField(
     leadingIcon: ImageVector? = null,
     /** 密码模式：内容用圆点遮起来 */
     password: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    /** 需要自动聚焦时传入（例如锁屏的密码框） */
+    focusRequester: FocusRequester? = null,
     enabled: Boolean = true
 ) {
     val colors = AppTheme.colors
     val shape = RoundedCornerShape(Radius.md)
-    val borderColor = if (isError) colors.error else colors.border
+    // iOS 风格输入区是嵌入式 surface；只有错误状态才露出明确边框。
+    val borderColor = if (isError) colors.error else androidx.compose.ui.graphics.Color.Transparent
 
     Column(modifier = modifier) {
         if (label != null) {
@@ -92,10 +101,16 @@ fun AppTextField(
             VisualTransformation.None
         },
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+                    ),
                 enabled = enabled,
                 singleLine = singleLine,
                 minLines = minLines,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
                 textStyle = AppTheme.type.bodyLarge.copy(color = colors.textPrimary),
                 cursorBrush = SolidColor(colors.accent),
                 decorationBox = { innerTextField ->

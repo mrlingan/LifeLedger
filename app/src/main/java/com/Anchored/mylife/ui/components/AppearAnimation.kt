@@ -44,13 +44,13 @@ fun Modifier.appearAnimation(index: Int = 0): Modifier {
         targetValue = if (appeared) 1f else 0f,
         animationSpec = tween(
             durationMillis = AppMotion.duration(AppMotion.Slow),
-            // 精简模式下不再错峰，列表是一起落下来
-            delayMillis = if (motion == MotionChoice.FULL) {
-                (index % STAGGER_STEPS) * STAGGER_STEP_MILLIS
-            } else {
-                0
+            // 优雅模式的错峰更舒展；精简模式则让列表一起出现。
+            delayMillis = when (motion) {
+                MotionChoice.ELEGANT -> (index % STAGGER_STEPS) * 60
+                MotionChoice.FULL -> (index % STAGGER_STEPS) * STAGGER_STEP_MILLIS
+                else -> 0
             },
-            easing = AppMotion.Decelerate
+            easing = AppMotion.enterEasing()
         ),
         label = "appearAnimation"
     )

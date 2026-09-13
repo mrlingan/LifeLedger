@@ -15,6 +15,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.Anchored.mylife.R
 import com.Anchored.mylife.ui.CategoryProgress
+import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.components.AppProgressRing
 import com.Anchored.mylife.ui.components.AppTextLink
 import com.Anchored.mylife.ui.components.SectionHeader
@@ -44,7 +46,10 @@ internal fun CategoryProgressSection(
 ) {
     if (items.isEmpty()) return
 
-    Column(modifier = modifier) {
+    AppCard(
+        modifier = modifier.padding(horizontal = Sizes.gutter),
+        tone = AppCardTone.Surface
+    ) {
         SectionHeader(
             title = stringResource(R.string.home_category_progress),
             subtitle = stringResource(
@@ -52,7 +57,6 @@ internal fun CategoryProgressSection(
                 unlockedCount,
                 totalCount
             ),
-            modifier = Modifier.padding(start = Sizes.gutter, end = Spacing.xs),
             action = {
                 AppTextLink(
                     text = stringResource(R.string.home_view_all),
@@ -63,11 +67,7 @@ internal fun CategoryProgressSection(
 
         Spacer(modifier = Modifier.height(Spacing.lg))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Sizes.gutter)
-        ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
             items.take(CATEGORY_LIMIT).forEach { item ->
                 CategoryProgressItem(
                     item = item,

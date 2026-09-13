@@ -1,7 +1,6 @@
 package com.Anchored.mylife.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +26,7 @@ import com.Anchored.mylife.ui.theme.Spacing
 /**
  * 卡片色调。
  *
- * 默认只靠「表面色差 + 1dp 描边」建立层级，**不使用阴影**。
+ * iOS 的分组列表靠背景层级而不是硬描边区分内容；卡片默认没有轮廓线。
  */
 enum class AppCardTone {
     /** 默认：白底 + 描边，用在背景稍灰的页面上 */
@@ -69,22 +68,10 @@ fun AppCard(
         AppCardTone.Soft -> colors.surfaceSunken
         AppCardTone.Accent -> colors.accentSoft
     }
-    val borderColor = when (tone) {
-        AppCardTone.Surface -> colors.border
-        else -> Color.Transparent
-    }
-
     Box(
         modifier = modifier
             .clip(shape)
             .background(background)
-            .then(
-                if (borderColor != Color.Transparent) {
-                    Modifier.border(Sizes.hairline, borderColor, shape)
-                } else {
-                    Modifier
-                }
-            )
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
             )

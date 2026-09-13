@@ -10,6 +10,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.Anchored.mylife.data.backup.BackupSummary
+import com.Anchored.mylife.data.crypto.AppPin
 import com.Anchored.mylife.data.repository.RepositoryProvider
 import com.Anchored.mylife.data.settings.AppSettings
 import com.Anchored.mylife.data.settings.ThemeMode
@@ -22,11 +23,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val backgroundImageUri: String? = null,
+    /** 背景图片显示强度，0.05..0.90；越大图片越明显 */
+    val backgroundImageOpacity: Float = AppSettings.BACKGROUND_OPACITY_DEFAULT,
     val appLockEnabled: Boolean = false,
+    /** 是否已经设过应用密码（4–9 位数字） */
+    val appPinSet: Boolean = false,
     val biometricAvailable: Boolean = false,
     val stats: BackupSummary = BackupSummary(),
     val appVersion: String = "",
@@ -85,13 +93,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }.getOrDefault(false)
 
     // combine 直接接的上限是 5 个流，这里先把同类项打包，免得层层嵌套
-    private val coreSettings: Flow<CoreSettings> = combine(
+    private val appearanceSettings: Flow<AppearanceSettings> = combine(
         settings.themeMode,
+        settings.backgroundImageUri,
+        settings.backgroundImageOpacity
+    ) { themeMode, backgroundImageUri, backgroundImageOpacity ->
+        AppearanceSettings(themeMode, backgroundImageUri, backgroundImageOpacity)
+    }
+
+    private val coreSettings: Flow<CoreSettings> = combine(
+        appearanceSettings,
         settings.appLockEnabled,
+        settings.appPinHash,
         stats,
         version
-    ) { themeMode, appLockEnabled, backupSummary, appVersion ->
-        CoreSettings(themeMode, appLockEnabled, backupSummary, appVersion)
+    ) { appearance, appLockEnabled, appPinHash, backupSummary, appVersion ->
+        CoreSettings(
+            themeMode = appearance.themeMode,
+            backgroundImageUri = appearance.backgroundImageUri,
+            backgroundImageOpacity = appearance.backgroundImageOpacity,
+            appLockEnabled = appLockEnabled,
+            appPinHash = appPinHash,
+            stats = backupSummary,
+            version = appVersion
+        )
     }
 
     private val profileSummary: Flow<ProfileSummary> = combine(
@@ -127,7 +152,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     ) { core, languageTag, profile, look, reminder ->
         SettingsUiState(
             themeMode = core.themeMode,
+            backgroundImageUri = core.backgroundImageUri,
+            backgroundImageOpacity = core.backgroundImageOpacity,
             appLockEnabled = core.appLockEnabled,
+            appPinSet = core.appPinHash != null,
             biometricAvailable = biometricAvailable,
             stats = core.stats,
             appVersion = core.version,
@@ -167,12 +195,36 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setThemeMode(mode: ThemeMode) {
         settings.setThemeMode(mode)
     }
+    fun setBackgroundImageUri(uri: String?) = settings.setBackgroundImageUri(uri)
+
+    fun setBackgroundImageOpacity(opacity: Float) = settings.setBackgroundImageOpacity(opacity)
 
     fun setAppLockEnabled(enabled: Boolean) {
         // 设备不支持验证方式时不允许开启，否则用户会被关在外面
         if (!enabled || biometricAvailable) {
             settings.setAppLockEnabled(enabled)
         }
+    }
+
+    /**
+     * 设置应用密码。
+     *
+     * 派生 PBKDF2 要 100ms 上下，所以放到后台线程。
+     * 设了密码就一定上锁（见 AppLockGate），不用再动指纹那个开关。
+     */
+    fun setAppPin(pin: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            settings.setAppPin(pin)
+        }
+    }
+
+    fun clearAppPin() {
+        settings.clearAppPin()
+    }
+
+    /** 校验当前密码；由对话框调用，所以做成挂起函数，别占主线程 */
+    suspend fun verifyAppPin(pin: String): Boolean = withContext(Dispatchers.Default) {
+        AppPin.verify(pin, settings.appPinHash.value)
     }
 
     /**
@@ -193,10 +245,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMotion(value: MotionChoice) = settings.setMotion(value)
 }
 
+private data class AppearanceSettings(
+    val themeMode: ThemeMode,
+    val backgroundImageUri: String?,
+    val backgroundImageOpacity: Float
+)
+
 /** 设置页里几个"成组"的状态，打包后一起流给界面 */
 private data class CoreSettings(
     val themeMode: ThemeMode,
+    val backgroundImageUri: String?,
+    val backgroundImageOpacity: Float,
     val appLockEnabled: Boolean,
+    val appPinHash: String?,
     val stats: BackupSummary,
     val version: String
 )

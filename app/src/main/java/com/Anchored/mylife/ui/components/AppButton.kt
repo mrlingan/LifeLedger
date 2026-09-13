@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
@@ -94,7 +95,7 @@ fun AppButton(
             }
             Text(
                 text = text,
-                style = AppTheme.type.body,
+                style = AppTheme.type.body.copy(fontWeight = FontWeight.SemiBold),
                 color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

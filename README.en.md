@@ -94,7 +94,8 @@ This project tries something a little different — it treats **what has already
 - **Animation**: full / reduced / off
 - **Backup and restore**: export, import, and how much data you have
 - **Daily reminder**: pick a time and frequency (every day / weekdays); a local system alarm posts one notification — no WorkManager involved
-- **App lock**: fingerprint, face or device PIN; re-locks 30 seconds after you leave the app
+- **App lock**: the app password and fingerprint / face are two independent locks — use either or both. **A lock you turned off never appears on the lock screen** (a capable device is not the same as an enabled setting); re-locks 30 seconds after you leave the app
+- **Remove app password**: its own entry in settings, confirmed with the current password — not a button squeezed in next to "save"
 - **Data security**: where your data lives, the **local encryption switch**, and a shortcut to backup
 - **Profile**: nickname, avatar and a personal signature; the nickname shows up in the home greeting and the signature right under it. The avatar is copied into app-private storage, so it does not depend on your gallery
 - **About**: version number and open-source licences
@@ -103,7 +104,7 @@ This project tries something a little different — it treats **what has already
 
 - A complete custom design system (colour / type / spacing / radius / motion)
 - **No default-looking Material components**: cards, buttons, text fields, dialogs, switches and filters are all hand-built
-- **Bottom navigation**: home / achievements / codex / settings, hidden automatically on secondary screens (detail, new achievement, backup); the selected tab is shown with the accent colour only — no selected block, no indicator pill
+- **Bottom navigation**: home / achievements / codex / settings plus a centre "record achievement" action. The bar itself is a slab of **liquid glass** — a single-pass AGSL shader refracts the page behind it along a rounded-rect SDF, with edge dispersion and a rim highlight, so content slides under the glass. The selection indicator is a **glass droplet** that slides, stretches and settles, and can be dragged and snapped onto the nearest tab. Hidden automatically on secondary screens (detail, new achievement, backup)
 - Dark mode has its own palette, not an inverted one
 - **Chinese and English**: follow the system language; all 109 codex titles, descriptions and stories are fully translated
 
@@ -164,6 +165,8 @@ A few rules that are deliberately followed:
 
 Public components live in `ui/components/`: `AppTopBar`, `AppBottomBar`, `AppCard`, `AppButton`, `AppIconButton`, `AppTextLink`, `AppTextField`, `AppDialog`, `AppSnackbar`, `AppChip`, `AppSwitch`, `AppSettingRow`, `SegmentedControl`, `AchievementCard`, `RarityBadge`, `StatusBadge`, `MetricNumber` / `StatTile`, `ProgressBar` / `ProgressRing` / `IndeterminateBar`, `SectionHeader` / `TimelineItem`, `EmptyState`, `AppearAnimation`.
 
+Liquid glass lives in `ui/components/liquidglass/`: `LiquidGlassBackdrop` (records "background + page" into one GPU layer to sample from), `LiquidGlassSurface` (refraction / dispersion / rim highlight — shader on API 33+, blur on 31–32, flat frost below), `LiquidGlassTabBar` (the bar and its droplet). Shader source: `res/raw/liquidglass_effect.agsl`.
+
 ---
 
 ## Getting started
@@ -217,7 +220,7 @@ app/src/main/
 │   │   ├── repository/    repository layer and single entry point
 │   │   └── settings/      app settings (SharedPreferences)
 │   └── ui/
-│       ├── components/    shared UI components
+│       ├── components/    shared UI components (liquidglass/ = liquid glass)
 │       ├── home/          home sections (greeting, life progress, metrics, categories, recent)
 │       ├── codex/         codex entry and progress sections
 │       ├── theme/         design system
@@ -356,6 +359,8 @@ You are free to use, modify and distribute this project, including commercially,
 ## Credits
 
 - [EarthOnline-Achievement](https://github.com/LKlingkong/EarthOnline-Achievement) — the source of the 109 preset achievements
+- [AndroidLiquidGlassView](https://github.com/QmDeve/AndroidLiquidGlassView) (Donny Yang, MIT) — the AGSL refraction / dispersion pipeline behind the bottom navigation
+- [HeyBox-LiquidGlass](https://github.com/sjtt2/HeyBox-LiquidGlass) (MIT) — reference for wiring that pipeline up and for the droplet interaction
 - [AndroidX](https://developer.android.com/jetpack) — Room / Compose / Navigation / Biometric
 - [Material Symbols](https://fonts.google.com/icons) — functional UI icons
 

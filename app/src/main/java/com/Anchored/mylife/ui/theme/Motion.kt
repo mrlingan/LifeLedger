@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
  * 动效系统。
  *
  * 只有四档时长，统一缓动。禁止回弹、禁止大幅度飞入飞出、禁止游戏式缩放。
- * 动效应该「快、自然、克制」。
+ * 动效应该「快、自然、克制」；「优雅」档则在此基础上延长落点，营造更舒展的节奏。
  *
  * 用法：
  * ```
@@ -44,6 +44,9 @@ object AppMotion {
     /** 进入：起步轻，落点稳 */
     val Decelerate: Easing = CubicBezierEasing(0f, 0f, 0.2f, 1f)
 
+    /** 优雅：前段快速建立反馈，后段更长、更柔和地贴合最终位置。 */
+    val Elegant: Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+
     /** 退出：起步快，干脆收尾 */
     val Accelerate: Easing = CubicBezierEasing(0.4f, 0f, 1f, 1f)
 
@@ -60,11 +63,27 @@ object AppMotion {
 
     /** 入场 */
     @Composable
-    fun <T> enter(): FiniteAnimationSpec<T> = tween(duration(Slow), easing = Decelerate)
+    fun <T> enter(): FiniteAnimationSpec<T> = tween(duration(Slow), easing = enterEasing())
 
     /** 退出 */
     @Composable
-    fun <T> exit(): FiniteAnimationSpec<T> = tween(duration(Base), easing = Accelerate)
+    fun <T> exit(): FiniteAnimationSpec<T> = tween(duration(Base), easing = exitEasing())
+
+    /** 当前设置对应的进入曲线，供页面转场和列表入场共用。 */
+    @Composable
+    @ReadOnlyComposable
+    fun enterEasing(): Easing = when (AppTheme.display.motion) {
+        MotionChoice.ELEGANT -> Elegant
+        else -> Decelerate
+    }
+
+    /** 优雅模式的退出不急刹，仍使用标准缓动保持视觉连贯。 */
+    @Composable
+    @ReadOnlyComposable
+    fun exitEasing(): Easing = when (AppTheme.display.motion) {
+        MotionChoice.ELEGANT -> Standard
+        else -> Accelerate
+    }
 
     /**
      * 按当前动效设置折算时长。
@@ -75,6 +94,7 @@ object AppMotion {
     @Composable
     @ReadOnlyComposable
     fun duration(base: Int): Int = when (AppTheme.display.motion) {
+        MotionChoice.ELEGANT -> (base * 1.45f).roundToInt()
         MotionChoice.FULL -> base
         MotionChoice.REDUCED -> (base * 0.6f).roundToInt()
         MotionChoice.OFF -> 0

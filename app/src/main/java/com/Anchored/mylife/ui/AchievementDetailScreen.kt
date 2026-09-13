@@ -124,7 +124,7 @@ fun AchievementDetailRoute(
 
     val launchMediaPicker: (MediaPickMode) -> Unit = { mode ->
         pickMode = mode
-        mediaPicker.launch(
+        mediaPicker.launchExternal(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
         )
     }
@@ -203,9 +203,11 @@ fun AchievementDetailScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var noteEditor by remember { mutableStateOf<NoteEditorTarget?>(null) }
+    // 等待二次确认 + 身份核对的那条笔记
+    var notePendingDelete by remember { mutableStateOf<Note?>(null) }
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),
@@ -362,7 +364,7 @@ fun AchievementDetailScreen(
                             note = note,
                             mediaList = uiState.mediaByNote[note.id].orEmpty(),
                             onEdit = { noteEditor = NoteEditorTarget.Existing(note) },
-                            onDelete = { onDeleteNote(note.id) },
+                            onDelete = { notePendingDelete = note },
                             onAddMedia = { onAddMedia(note.id) },
                             onMediaClick = onViewMedia,
                             modifier = Modifier
@@ -439,6 +441,19 @@ fun AchievementDetailScreen(
             }
         )
     }
+
+    // 删笔记：先确认，再核对身份（应用密码或指纹 / 面容）
+    IdentityConfirmDialog(
+        visible = notePendingDelete != null,
+        title = stringResource(R.string.note_delete_title),
+        message = stringResource(R.string.note_delete_message),
+        onDismiss = { notePendingDelete = null },
+        onConfirmed = {
+            val pending = notePendingDelete
+            notePendingDelete = null
+            if (pending != null) onDeleteNote(pending.id)
+        }
+    )
 
     noteEditor?.let { target ->
         val isNewNote = target is NoteEditorTarget.New

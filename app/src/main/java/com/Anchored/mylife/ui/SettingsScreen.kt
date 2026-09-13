@@ -1,7 +1,14 @@
 package com.Anchored.mylife.ui
 
+import android.net.Uri
 import com.Anchored.mylife.R
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,6 +33,8 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -35,32 +44,39 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.data.backup.BackupSummary
 import com.Anchored.mylife.data.settings.ThemeMode
+import com.Anchored.mylife.data.settings.AppSettings
 import com.Anchored.mylife.data.settings.FontScaleChoice
 import com.Anchored.mylife.data.settings.ListDensity
 import com.Anchored.mylife.data.settings.MotionChoice
 import androidx.annotation.StringRes
 import com.Anchored.mylife.ui.components.AppCard
 import com.Anchored.mylife.ui.components.AppAvatar
+import com.Anchored.mylife.ui.components.AppButton
+import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppDialog
 import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppSegmentedControl
 import com.Anchored.mylife.ui.components.AppSettingRow
 import com.Anchored.mylife.ui.components.AppSwitch
 import com.Anchored.mylife.ui.components.AppTopBar
+import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
 import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
+import kotlin.math.roundToInt
 
 /** 规划中的条目统一标注，避免点了没反应（存资源 id，在使用处取文案） */
 private val SOON_LABEL = R.string.common_coming_soon
@@ -77,6 +93,9 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val backgroundPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri -> viewModel.setBackgroundImageUri(uri?.toString()) }
 
     SettingsScreen(
         uiState = uiState,
@@ -88,7 +107,17 @@ fun SettingsRoute(
         onOpenReminder = { navController.navigate("reminder") },
         onOpenDataSecurity = { navController.navigate("data_security") },
         onThemeModeChange = viewModel::setThemeMode,
+        onPickBackground = {
+            backgroundPicker.launchExternal(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        },
+        onRemoveBackground = { viewModel.setBackgroundImageUri(null) },
+        onBackgroundOpacityChange = viewModel::setBackgroundImageOpacity,
         onAppLockChange = viewModel::setAppLockEnabled,
+        onPinSave = viewModel::setAppPin,
+        onPinRemove = viewModel::clearAppPin,
+        verifyPin = viewModel::verifyAppPin,
         onLanguageChange = viewModel::setLanguage,
         onListDensityChange = viewModel::setListDensity,
         onFontScaleChange = viewModel::setFontScale,
@@ -106,7 +135,13 @@ fun SettingsScreen(
     onOpenReminder: () -> Unit,
     onOpenDataSecurity: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onPickBackground: () -> Unit,
+    onRemoveBackground: () -> Unit,
+    onBackgroundOpacityChange: (Float) -> Unit,
     onAppLockChange: (Boolean) -> Unit,
+    onPinSave: (String) -> Unit,
+    onPinRemove: () -> Unit,
+    verifyPin: suspend (String) -> Boolean,
     onLanguageChange: (LanguageChoice) -> Unit,
     onListDensityChange: (ListDensity) -> Unit,
     onFontScaleChange: (FontScaleChoice) -> Unit,
@@ -115,11 +150,14 @@ fun SettingsScreen(
     val colors = AppTheme.colors
     var showAbout by remember { mutableStateOf(false) }
     var showLanguage by remember { mutableStateOf(false) }
+    var showTheme by remember { mutableStateOf(false) }
+    var showPin by remember { mutableStateOf(false) }
+    var showPinRemove by remember { mutableStateOf(false) }
     var showDisplay by remember { mutableStateOf(false) }
     var showAnimation by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),
@@ -133,7 +171,8 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Sizes.gutter)
-                .padding(bottom = Spacing.xxl)
+                // 底栏是浮在内容上的：末尾再多留出它压住的高度
+                .padding(bottom = Spacing.xxl + LocalBottomBarClearance.current)
         ) {
             ProfileHeader(
                 nickname = uiState.nickname,
@@ -152,26 +191,13 @@ fun SettingsScreen(
             }
 
             SettingsSection(title = stringResource(R.string.settings_sec_look)) {
-                Column(modifier = Modifier.padding(Spacing.lg)) {
-                    Text(
-                        text = stringResource(R.string.settings_theme),
-                        style = AppTheme.type.bodyLarge,
-                        color = colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.xxs))
-                    Text(
-                        text = stringResource(R.string.settings_theme_desc),
-                        style = AppTheme.type.bodySmall,
-                        color = colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.lg))
-                    AppSegmentedControl(
-                        options = listOf(stringResource(R.string.settings_theme_system), stringResource(R.string.settings_theme_light), stringResource(R.string.settings_theme_dark)),
-                        selectedIndex = ThemeMode.entries.indexOf(uiState.themeMode),
-                        onSelect = { index -> onThemeModeChange(ThemeMode.entries[index]) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                AppSettingRow(
+                    title = stringResource(R.string.settings_theme),
+                    subtitle = stringResource(R.string.settings_theme_desc),
+                    trailingText = stringResource(uiState.themeMode.labelRes()),
+                    showChevron = true,
+                    onClick = { showTheme = true }
+                )
                 AppDivider()
                 AppSettingRow(
                     title = stringResource(R.string.settings_language),
@@ -239,11 +265,34 @@ fun SettingsScreen(
 
             SettingsSection(title = stringResource(R.string.settings_sec_privacy)) {
                 AppSettingRow(
-                    title = stringResource(R.string.settings_app_lock),
-                    subtitle = if (uiState.biometricAvailable) {
-                        stringResource(R.string.settings_app_lock_desc)
+                    title = stringResource(R.string.settings_app_pin),
+                    subtitle = stringResource(R.string.settings_app_pin_desc),
+                    trailingText = if (uiState.appPinSet) {
+                        stringResource(R.string.settings_app_pin_set)
                     } else {
-                        stringResource(R.string.settings_app_lock_na)
+                        stringResource(R.string.settings_app_pin_unset)
+                    },
+                    showChevron = true,
+                    onClick = { showPin = true }
+                )
+                // 移除密码是不可逆操作，单独一项，不和「设置 / 修改」挤在一个弹窗里
+                if (uiState.appPinSet) {
+                    AppDivider()
+                    AppSettingRow(
+                        title = stringResource(R.string.settings_app_pin_remove),
+                        subtitle = stringResource(R.string.settings_app_pin_remove_desc),
+                        destructive = true,
+                        showChevron = true,
+                        onClick = { showPinRemove = true }
+                    )
+                }
+                AppDivider()
+                AppSettingRow(
+                    title = stringResource(R.string.settings_biometric_unlock),
+                    subtitle = if (uiState.biometricAvailable) {
+                        stringResource(R.string.settings_biometric_unlock_desc)
+                    } else {
+                        stringResource(R.string.settings_biometric_unlock_na)
                     },
                     enabled = uiState.biometricAvailable,
                     trailing = {
@@ -289,6 +338,36 @@ fun SettingsScreen(
                 onLanguageChange(choice)
             },
             onDismiss = { showLanguage = false }
+        )
+    }
+
+    if (showTheme) {
+        ThemeDialog(
+            themeMode = uiState.themeMode,
+            backgroundImageUri = uiState.backgroundImageUri,
+            backgroundOpacity = uiState.backgroundImageOpacity,
+            onThemeModeChange = onThemeModeChange,
+            onPickBackground = onPickBackground,
+            onRemoveBackground = onRemoveBackground,
+            onOpacityChange = onBackgroundOpacityChange,
+            onDismiss = { showTheme = false }
+        )
+    }
+
+    if (showPin) {
+        AppPinDialog(
+            pinSet = uiState.appPinSet,
+            verifyCurrent = verifyPin,
+            onSave = onPinSave,
+            onDismiss = { showPin = false }
+        )
+    }
+
+    if (showPinRemove) {
+        AppPinRemoveDialog(
+            verifyCurrent = verifyPin,
+            onRemove = onPinRemove,
+            onDismiss = { showPinRemove = false }
         )
     }
 
@@ -367,6 +446,157 @@ private fun LanguageOptionRow(
                 contentDescription = null,
                 tint = colors.accentStrong,
                 modifier = Modifier.size(Sizes.iconMd)
+            )
+        }
+    }
+}
+
+/**
+ * 主题：明暗模式 + 全局背景图片。
+ *
+ * 图片和强度都是即时生效的——对话框背后的页面本身就是预览，
+ * 所以这里再放一张小图，让"数值越大越明显"有个直观参照。
+ */
+@Composable
+private fun ThemeDialog(
+    themeMode: ThemeMode,
+    backgroundImageUri: String?,
+    backgroundOpacity: Float,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onPickBackground: () -> Unit,
+    onRemoveBackground: () -> Unit,
+    onOpacityChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    AppDialog(
+        title = stringResource(R.string.settings_theme),
+        onDismissRequest = onDismiss,
+        onConfirm = onDismiss,
+        confirmText = stringResource(R.string.common_got_it),
+        dismissText = null,
+        content = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OptionLabel(
+                    title = stringResource(R.string.settings_theme_mode),
+                    description = null
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                AppSegmentedControl(
+                    options = ThemeMode.entries.map { stringResource(it.labelRes()) },
+                    selectedIndex = ThemeMode.entries.indexOf(themeMode),
+                    onSelect = { index -> onThemeModeChange(ThemeMode.entries[index]) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.xl))
+
+                OptionLabel(
+                    title = stringResource(R.string.settings_background_image),
+                    description = stringResource(R.string.settings_background_image_desc)
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                BackgroundPreview(uri = backgroundImageUri, opacity = backgroundOpacity)
+
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppButton(
+                        text = stringResource(
+                            if (backgroundImageUri == null) {
+                                R.string.settings_background_pick
+                            } else {
+                                R.string.settings_background_change
+                            }
+                        ),
+                        onClick = onPickBackground,
+                        variant = AppButtonVariant.Secondary
+                    )
+                    if (backgroundImageUri != null) {
+                        Spacer(modifier = Modifier.width(Spacing.sm))
+                        AppButton(
+                            text = stringResource(R.string.settings_background_remove),
+                            onClick = onRemoveBackground,
+                            variant = AppButtonVariant.Text
+                        )
+                    }
+                }
+
+                if (backgroundImageUri != null) {
+                    Spacer(modifier = Modifier.height(Spacing.xl))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.settings_background_opacity),
+                            style = AppTheme.type.bodyLarge,
+                            color = colors.textPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.settings_background_opacity_value,
+                                (backgroundOpacity * 100).roundToInt()
+                            ),
+                            style = AppTheme.type.caption,
+                            color = colors.textTertiary
+                        )
+                    }
+
+                    Slider(
+                        value = backgroundOpacity,
+                        onValueChange = onOpacityChange,
+                        valueRange = AppSettings.BACKGROUND_OPACITY_MIN..
+                            AppSettings.BACKGROUND_OPACITY_MAX,
+                        steps = 16,
+                        colors = SliderDefaults.colors(
+                            thumbColor = colors.accent,
+                            activeTrackColor = colors.accent,
+                            inactiveTrackColor = colors.surfaceSunken
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        text = stringResource(R.string.settings_background_opacity_note),
+                        style = AppTheme.type.caption,
+                        color = colors.textTertiary
+                    )
+                }
+            }
+        }
+    )
+}
+
+/** 背景图小预览：按当前强度画一遍，没选图时显示提示文字 */
+@Composable
+private fun BackgroundPreview(uri: String?, opacity: Float) {
+    val colors = AppTheme.colors
+    val thumbnail = uri?.let { rememberUriThumbnail(Uri.parse(it), sizePx = 360) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(Sizes.wallpaperPreview)
+            .clip(RoundedCornerShape(Radius.md))
+            .background(colors.surfaceSunken),
+        contentAlignment = Alignment.Center
+    ) {
+        if (thumbnail != null) {
+            Image(
+                bitmap = thumbnail,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(opacity)
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.settings_background_empty),
+                style = AppTheme.type.caption,
+                color = colors.textTertiary
             )
         }
     }
@@ -535,6 +765,13 @@ private fun ProfileHeader(
 }
 
 @StringRes
+private fun ThemeMode.labelRes(): Int = when (this) {
+    ThemeMode.SYSTEM -> R.string.settings_theme_system
+    ThemeMode.LIGHT -> R.string.settings_theme_light
+    ThemeMode.DARK -> R.string.settings_theme_dark
+}
+
+@StringRes
 private fun ListDensity.labelRes(): Int = when (this) {
     ListDensity.COMPACT -> R.string.display_density_compact
     ListDensity.STANDARD -> R.string.display_density_standard
@@ -550,6 +787,7 @@ private fun FontScaleChoice.labelRes(): Int = when (this) {
 
 @StringRes
 private fun MotionChoice.labelRes(): Int = when (this) {
+    MotionChoice.ELEGANT -> R.string.animation_elegant
     MotionChoice.FULL -> R.string.animation_full
     MotionChoice.REDUCED -> R.string.animation_reduced
     MotionChoice.OFF -> R.string.animation_off
@@ -680,7 +918,13 @@ private fun SettingsPreview() {
             onOpenReminder = {},
             onOpenDataSecurity = {},
             onThemeModeChange = {},
+            onPickBackground = {},
+            onRemoveBackground = {},
+            onBackgroundOpacityChange = {},
             onAppLockChange = {},
+            onPinSave = {},
+            onPinRemove = {},
+            verifyPin = { true },
             onLanguageChange = {},
             onListDensityChange = {},
             onFontScaleChange = {},

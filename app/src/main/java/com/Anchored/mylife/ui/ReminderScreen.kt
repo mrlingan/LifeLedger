@@ -83,7 +83,7 @@ fun ReminderRoute(
                 }
 
                 needsNotificationPermission(context) ->
-                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    permissionLauncher.launchExternal(Manifest.permission.POST_NOTIFICATIONS)
 
                 else -> {
                     permissionDenied = false
@@ -116,7 +116,7 @@ fun ReminderScreen(
     val context = LocalContext.current
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),

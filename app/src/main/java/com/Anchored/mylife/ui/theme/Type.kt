@@ -39,21 +39,21 @@ data class AppTypography(
 internal val AppType = AppTypography(
     display = TextStyle(
         fontWeight = FontWeight.Bold,
-        fontSize = 44.sp,
-        lineHeight = 50.sp,
-        letterSpacing = (-1.2).sp
+        fontSize = 36.sp,
+        lineHeight = 42.sp,
+        letterSpacing = (-0.8).sp
     ),
     h1 = TextStyle(
         fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 38.sp,
-        letterSpacing = (-0.8).sp
+        fontSize = 34.sp,
+        lineHeight = 41.sp,
+        letterSpacing = (-0.6).sp
     ),
     h2 = TextStyle(
         fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp,
-        lineHeight = 30.sp,
-        letterSpacing = (-0.4).sp
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.2).sp
     ),
     h3 = TextStyle(
         fontWeight = FontWeight.SemiBold,
@@ -84,9 +84,9 @@ internal val AppType = AppTypography(
     ),
     numberLarge = TextStyle(
         fontWeight = FontWeight.Bold,
-        fontSize = 40.sp,
-        lineHeight = 44.sp,
-        letterSpacing = (-1.0).sp,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.6).sp,
         fontFeatureSettings = TABULAR_NUMBERS
     ),
     numberMedium = TextStyle(

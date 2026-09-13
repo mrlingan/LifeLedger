@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -19,15 +20,19 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import android.net.Uri
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -38,6 +43,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.Anchored.mylife.R
+import com.Anchored.mylife.data.crypto.AppPin
 import com.Anchored.mylife.data.repository.RepositoryProvider
 import com.Anchored.mylife.data.settings.ThemeMode
 import com.Anchored.mylife.data.settings.StartChoice
@@ -45,10 +51,15 @@ import com.Anchored.mylife.data.settings.MotionChoice
 import com.Anchored.mylife.ui.components.AppBottomBar
 import com.Anchored.mylife.ui.components.AppBottomBarAction
 import com.Anchored.mylife.ui.components.AppBottomBarItem
+import com.Anchored.mylife.ui.components.LocalBottomBarClearance
+import com.Anchored.mylife.ui.components.liquidglass.liquidGlassBackdrop
+import com.Anchored.mylife.ui.components.liquidglass.rememberLiquidGlassBackdrop
 import com.Anchored.mylife.ui.theme.AppMotion
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.AppDisplay
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
+import com.Anchored.mylife.ui.theme.Sizes
+import com.Anchored.mylife.ui.theme.Spacing
 
 // ---------------------------------------------------------------------------
 // 路由表
@@ -119,10 +130,18 @@ fun AchievementNavHost(
 
     val themeMode by appSettings.themeMode.collectAsStateWithLifecycle()
     val appLockEnabled by appSettings.appLockEnabled.collectAsStateWithLifecycle()
+    val appPinHash by appSettings.appPinHash.collectAsStateWithLifecycle()
     val startChoice by appSettings.startChoice.collectAsStateWithLifecycle()
     val listDensity by appSettings.listDensity.collectAsStateWithLifecycle()
     val fontScale by appSettings.fontScale.collectAsStateWithLifecycle()
     val motion by appSettings.motion.collectAsStateWithLifecycle()
+    val backgroundImageUri by appSettings.backgroundImageUri.collectAsStateWithLifecycle()
+    val backgroundImageOpacity by appSettings.backgroundImageOpacity.collectAsStateWithLifecycle()
+
+    // 背景图在这里解码一次，交给主题层统一铺底
+    val backgroundImage = backgroundImageUri?.let { uri ->
+        rememberUriThumbnail(Uri.parse(uri), sizePx = 1440)
+    }
 
     val darkTheme = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -140,60 +159,88 @@ fun AchievementNavHost(
 
     // 页面转场时长跟着动效设置走：关闭时直接 0，等于没有转场
     val motionScale = when (motion) {
+        MotionChoice.ELEGANT -> 1.45f
         MotionChoice.FULL -> 1f
         MotionChoice.REDUCED -> 0.6f
         MotionChoice.OFF -> 0f
     }
     fun motionMs(base: Int): Int = (base * motionScale).toInt()
+    val enterEasing = AppMotion.enterEasing()
+    val exitEasing = AppMotion.exitEasing()
 
-    LifeLedgerTheme(darkTheme = darkTheme, display = display) {
+    // 玻璃底栏的采样源：整屏「背景 + 页面」录进一层 GPU 图层，底栏再折射它。
+    // 底栏自己必须留在这一层之外（见 LifeLedgerTheme 的 overlay），否则会采样到自己。
+    val glassBackdrop = rememberLiquidGlassBackdrop()
+    var appLocked by remember { mutableStateOf(false) }
+    var showAddOptions by remember { mutableStateOf(false) }
+
+    val themeBackStackEntry by navController.currentBackStackEntryAsState()
+    val themeRoute = themeBackStackEntry?.destination?.route
+    val themePickMode = themeBackStackEntry?.arguments?.getBoolean("pick") == true
+    val themeSelectedTab = BottomTab.entries.indexOfFirst { it.route == themeRoute }
+    // 第一次打开（还没选从哪里开始）不出底栏；二级页面、挑图鉴、锁屏同理
+    val barVisible = startChoice != StartChoice.UNSET &&
+        themeSelectedTab >= 0 &&
+        !themePickMode &&
+        !appLocked
+
+    LifeLedgerTheme(
+        darkTheme = darkTheme,
+        display = display,
+        backgroundImage = backgroundImage,
+        backgroundImageSet = backgroundImageUri != null,
+        backgroundImageOpacity = backgroundImageOpacity,
+        contentModifier = Modifier.liquidGlassBackdrop(glassBackdrop, enabled = barVisible),
+        overlay = {
+            if (barVisible) {
+                AppBottomBar(
+                    items = BottomTab.entries.map { tab ->
+                        AppBottomBarItem(
+                            icon = tab.icon,
+                            label = stringResource(tab.labelRes)
+                        )
+                    },
+                    selectedIndex = themeSelectedTab,
+                    onSelect = { index ->
+                        navController.navigateToTab(BottomTab.entries[index].navigateRoute)
+                    },
+                    backdrop = glassBackdrop,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    // 「记录成就」放在四个 tab 正中间：它是动作，不是页面
+                    centerAction = AppBottomBarAction(
+                        icon = Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.add_title),
+                        onClick = { showAddOptions = true }
+                    )
+                )
+            }
+        }
+    ) {
         if (startChoice == StartChoice.UNSET) {
             // 第一次打开：先问一句从哪里开始；选完这个值就变了，界面自然切到主页
             OnboardingRoute()
             return@LifeLedgerTheme
         }
 
-        AppLockGate(enabled = appLockEnabled) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = AppTheme.colors.background
-            ) {
-                var showAddOptions by remember { mutableStateOf(false) }
-                val backStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = backStackEntry?.destination?.route
-                val pickMode = backStackEntry?.arguments?.getBoolean("pick") == true
-                val selectedTab = BottomTab.entries.indexOfFirst { it.route == currentRoute }
+        // 底栏浮在内容上，页面要留出它压住的高度，滚到末尾才不会把最后一条压在玻璃下面
+        val bottomBarClearance = if (barVisible) Sizes.bottomBar + Spacing.xl else 0.dp
 
+        AppLockGate(
+            enabled = appLockEnabled,
+            pinSet = appPinHash != null,
+            verifyPin = { pin -> AppPin.verify(pin, appPinHash) },
+            onLockedChange = { appLocked = it }
+        ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = AppTheme.pageColor) {
                 Scaffold(
                     containerColor = Color.Transparent,
                     // 顶部内边距由各个页面自己处理（大标题顶栏 / 紧凑顶栏）；
-                    // 这一层只负责给底部导航留出位置，不重复消耗系统栏
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                    bottomBar = {
-                        if (selectedTab >= 0 && !pickMode) {
-                            AppBottomBar(
-                                items = BottomTab.entries.map { tab ->
-                                    AppBottomBarItem(
-                                        icon = tab.icon,
-                                        label = stringResource(tab.labelRes)
-                                    )
-                                },
-                                selectedIndex = selectedTab,
-                                onSelect = { index ->
-                                    navController.navigateToTab(
-                                        BottomTab.entries[index].navigateRoute
-                                    )
-                                },
-                                // 「记录成就」放在四个 tab 正中间：它是动作，不是页面
-                                centerAction = AppBottomBarAction(
-                                    icon = Icons.Outlined.Add,
-                                    contentDescription = stringResource(R.string.add_title),
-                                    onClick = { showAddOptions = true }
-                                )
-                            )
-                        }
-                    }
+                    // 这一层不再给底栏留位置：底栏是浮在上面的，内容要从玻璃底下穿过去
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0)
                 ) { innerPadding ->
+                    CompositionLocalProvider(
+                        LocalBottomBarClearance provides bottomBarClearance
+                    ) {
                     NavHost(
                         navController = navController,
                         startDestination = ROUTE_HOME,
@@ -206,7 +253,7 @@ fun AchievementNavHost(
                                 slideInHorizontally(
                                     animationSpec = tween(
                                         motionMs(AppMotion.Medium),
-                                        easing = AppMotion.Decelerate
+                                        easing = enterEasing
                                     ),
                                     initialOffsetX = { it / 8 }
                                 )
@@ -214,7 +261,10 @@ fun AchievementNavHost(
                         exitTransition = {
                             fadeOut(tween(motionMs(AppMotion.Base))) +
                                 slideOutHorizontally(
-                                    animationSpec = tween(motionMs(AppMotion.Base)),
+                                    animationSpec = tween(
+                                        motionMs(AppMotion.Base),
+                                        easing = exitEasing
+                                    ),
                                     targetOffsetX = { -it / 12 }
                                 )
                         },
@@ -223,7 +273,7 @@ fun AchievementNavHost(
                                 slideInHorizontally(
                                     animationSpec = tween(
                                         motionMs(AppMotion.Medium),
-                                        easing = AppMotion.Decelerate
+                                        easing = enterEasing
                                     ),
                                     initialOffsetX = { -it / 8 }
                                 )
@@ -231,7 +281,10 @@ fun AchievementNavHost(
                         popExitTransition = {
                             fadeOut(tween(motionMs(AppMotion.Base))) +
                                 slideOutHorizontally(
-                                    animationSpec = tween(motionMs(AppMotion.Base)),
+                                    animationSpec = tween(
+                                        motionMs(AppMotion.Base),
+                                        easing = exitEasing
+                                    ),
                                     targetOffsetX = { it / 12 }
                                 )
                         }
@@ -311,6 +364,7 @@ fun AchievementNavHost(
                         composable(ROUTE_SETTINGS) {
                             SettingsRoute(navController = navController)
                         }
+                    }
                     }
                 }
 

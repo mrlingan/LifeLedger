@@ -24,6 +24,8 @@ import com.Anchored.mylife.ui.theme.Spacing
  * 设置项行：标题 + 说明 + 右侧的补充文案或箭头。
  *
  * 不可用时整体降级为次要文字色，并且不响应点击。
+ *
+ * @param destructive 不可逆操作（移除密码这类）：标题用危险色，提醒这一项不是普通开关
  */
 @Composable
 fun AppSettingRow(
@@ -33,6 +35,7 @@ fun AppSettingRow(
     trailingText: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     showChevron: Boolean = false,
+    destructive: Boolean = false,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
@@ -51,7 +54,11 @@ fun AppSettingRow(
             Text(
                 text = title,
                 style = AppTheme.type.bodyLarge,
-                color = if (enabled) colors.textPrimary else colors.textTertiary
+                color = when {
+                    !enabled -> colors.textTertiary
+                    destructive -> colors.error
+                    else -> colors.textPrimary
+                }
             )
             if (subtitle != null) {
                 Spacer(modifier = Modifier.height(Spacing.xxs))

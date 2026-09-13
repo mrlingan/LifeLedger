@@ -1,30 +1,13 @@
 package com.Anchored.mylife.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextOverflow
-import com.Anchored.mylife.ui.theme.AppTheme
-import com.Anchored.mylife.ui.theme.Radius
-import com.Anchored.mylife.ui.theme.Sizes
-import com.Anchored.mylife.ui.theme.Spacing
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.Anchored.mylife.ui.components.liquidglass.LiquidGlassBackdrop
+import com.Anchored.mylife.ui.components.liquidglass.LiquidGlassTabBar
 
 /** 底部导航的一项 */
 data class AppBottomBarItem(
@@ -44,99 +27,46 @@ data class AppBottomBarAction(
 )
 
 /**
- * 底部导航。
+ * 悬浮底栏压在内容上的高度。
  *
- * 没有用 Material 的 NavigationBar：这里没有选中色块、没有药丸指示器，
- * 选中态只体现为图标和文字换成强调色；顶部分隔线用 1dp hairline，不用阴影。
+ * 底栏不再占走页面的一行空间，而是浮在页面之上——列表因此可以从玻璃底下穿过去，
+ * 玻璃才有东西可以折射。代价是每个顶级页面要自己把「最后一条」抬到玻璃上方，
+ * 也就是在滚动内容的下内边距里加上这个值。
+ *
+ * 二级页面（详情 / 新建 / 备份）没有底栏，那里的值是 [0.dp]。
+ */
+val LocalBottomBarClearance = staticCompositionLocalOf<Dp> { 0.dp }
+
+/**
+ * 液态玻璃底部导航。
+ *
+ * 整条栏是一块采样背后画面的玻璃，选中态是一颗会滑动、拉长、吸附的玻璃滴；
+ * 图标与文字画在玻璃之上，保持清晰。具体渲染见
+ * [com.Anchored.mylife.ui.components.liquidglass.GlassSurface]。
+ *
  * 系统导航栏的内边距由组件自己处理，外层不用再补。
  *
  * 传了 [centerAction] 时，四个 tab 会被均分成左右两组，主操作插在正中间——
  * 这样最常用的动作永远在拇指够得到的位置，顶栏就能腾出来只放标题。
+ *
+ * @param backdrop 页面画面采样源。必须来自包裹了「背景 + 页面内容」的那一层，
+ *   且底栏自己不在那一层里，否则玻璃会采样到自己
  */
 @Composable
 fun AppBottomBar(
     items: List<AppBottomBarItem>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
+    backdrop: LiquidGlassBackdrop,
     modifier: Modifier = Modifier,
     centerAction: AppBottomBarAction? = null
 ) {
-    val colors = AppTheme.colors
-    val leftCount = if (centerAction == null) items.size else (items.size + 1) / 2
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(colors.surface)
-    ) {
-        AppDivider()
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .height(Sizes.bottomBar),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            items.forEachIndexed { index, item ->
-                if (centerAction != null && index == leftCount) {
-                    CenterActionButton(action = centerAction)
-                }
-
-                val selected = index == selectedIndex
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(onClick = { onSelect(index) }),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        tint = if (selected) colors.accent else colors.textTertiary,
-                        modifier = Modifier.size(Sizes.iconLg)
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.xxs))
-                    Text(
-                        text = item.label,
-                        style = AppTheme.type.caption,
-                        color = if (selected) colors.accentStrong else colors.textTertiary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 中间的强调色方块。
- *
- * 全站只有这一个实心强调色块出现在导航里：它是"记录"这个动作本身，
- * 不是某个页面的选中态，所以用实心是合理的，也不需要发光或阴影。
- */
-@Composable
-private fun CenterActionButton(action: AppBottomBarAction) {
-    val colors = AppTheme.colors
-    val shape = RoundedCornerShape(Radius.md)
-
-    Box(
-        modifier = Modifier
-            .size(Sizes.bottomBarAction)
-            .clip(shape)
-            .background(colors.accent)
-            .clickable(onClick = action.onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = action.icon,
-            contentDescription = action.contentDescription,
-            tint = colors.onAccent,
-            modifier = Modifier.size(Sizes.iconLg)
-        )
-    }
+    LiquidGlassTabBar(
+        items = items,
+        selectedIndex = selectedIndex,
+        onSelect = onSelect,
+        backdrop = backdrop,
+        modifier = modifier,
+        centerAction = centerAction
+    )
 }

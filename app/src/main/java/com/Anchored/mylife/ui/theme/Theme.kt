@@ -1,7 +1,12 @@
 package com.Anchored.mylife.ui.theme
 
 import android.app.Activity
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -13,10 +18,15 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
+import com.Anchored.mylife.data.settings.AppSettings
 import com.Anchored.mylife.data.settings.ListDensity
 import com.Anchored.mylife.data.settings.MotionChoice
 
@@ -43,6 +53,17 @@ object AppTheme {
         @ReadOnlyComposable
         get() = LocalAppColors.current
 
+    /**
+     * 页面根容器的填充色（Scaffold / 整屏 Box 用这个，不要用 [AppColors.background]）。
+     *
+     * 没设置背景图时它就是页面底色；设置之后它是透明的 —— 图片和遮罩由
+     * [LifeLedgerTheme] 统一铺在内容下面，页面再填一次底色会把图片压暗两遍。
+     */
+    val pageColor: Color
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAppPageColor.current
+
     val type: AppTypography
         @Composable
         @ReadOnlyComposable
@@ -56,6 +77,7 @@ object AppTheme {
 }
 
 private val LocalAppColors = staticCompositionLocalOf { LightAppColors }
+private val LocalAppPageColor = staticCompositionLocalOf { LightAppColors.background }
 private val LocalAppTypography = staticCompositionLocalOf { AppType }
 private val LocalAppDisplay = staticCompositionLocalOf { AppDisplay() }
 
@@ -99,7 +121,7 @@ val BrandVioletBright = Ink700
  * 还没重构的页面用的是 `MaterialTheme.colorScheme.xxx`，
  * 经过这层映射，它们也会立刻切换成新配色，不需要改页面代码。
  */
-private fun AppColors.toColorScheme(): ColorScheme =
+private fun AppColors.toColorScheme(pageColor: Color = background): ColorScheme =
     (if (isDark) darkColorScheme() else lightColorScheme()).copy(
         primary = accent,
         onPrimary = onAccent,
@@ -118,7 +140,7 @@ private fun AppColors.toColorScheme(): ColorScheme =
         tertiaryContainer = gold.copy(alpha = 0.16f),
         onTertiaryContainer = textPrimary,
 
-        background = background,
+        background = pageColor,
         onBackground = textPrimary,
         surface = surface,
         onSurface = textPrimary,
@@ -126,7 +148,7 @@ private fun AppColors.toColorScheme(): ColorScheme =
         onSurfaceVariant = textSecondary,
         surfaceTint = accent,
 
-        surfaceContainerLowest = background,
+        surfaceContainerLowest = pageColor,
         surfaceContainerLow = surface,
         surfaceContainer = surfaceElevated,
         surfaceContainerHigh = surfaceElevated,
@@ -149,14 +171,37 @@ private fun AppColors.toColorScheme(): ColorScheme =
  *
  * 刻意去掉了动态取色（Dynamic Color）：
  * 这是一个有明确视觉定位的产品，配色不接受被壁纸改写。
+ *
+ * 背景图片也在这里统一处理：图片铺在最底层，上面盖一层页面底色的遮罩，
+ * 内容再叠在最上面。遮罩只画这一次 —— 页面自己的根容器改用
+ * [AppTheme.pageColor]（有图时是透明的），否则两层遮罩叠起来图片就看不见了。
+ *
+ * @param backgroundImage 已经解码好的背景图；还没解码完可以传 null
+ * @param backgroundImageSet 用户是否设置了背景图。解码未完成时也要靠它
+ *   决定页面底色，免得图片加载出来的一瞬间整屏颜色跳一下
+ * @param backgroundImageOpacity 背景图显示强度，1 表示完全显示
+ * @param contentModifier 加在「背景 + 内容」这一层上的修饰符。液态玻璃要折射背后
+ *   的画面，就得把这一整层录进同一个图层，所以录制的入口在这里，而不是每个页面各录一份
+ * @param overlay 画在背景与内容之后、不被 [contentModifier] 覆盖的一层。
+ *   玻璃底栏属于这一层：它必须能看见底下的内容，又不能把自己也录进采样图层
  */
 @Composable
 fun LifeLedgerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     display: AppDisplay = AppDisplay(),
+    backgroundImage: ImageBitmap? = null,
+    backgroundImageSet: Boolean = backgroundImage != null,
+    backgroundImageOpacity: Float = AppSettings.BACKGROUND_OPACITY_DEFAULT,
+    contentModifier: Modifier = Modifier,
+    overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
-    val colors = if (darkTheme) DarkAppColors else LightAppColors
+    val baseColors = if (darkTheme) DarkAppColors else LightAppColors
+    val opacity = backgroundImageOpacity.coerceIn(
+        AppSettings.BACKGROUND_OPACITY_MIN,
+        AppSettings.BACKGROUND_OPACITY_MAX
+    )
+    val pageColor = if (backgroundImageSet) Color.Transparent else baseColors.background
     val systemDensity = LocalDensity.current
 
     // 应用内字号缩放：在系统字号之上再乘一层，只影响 sp，不动 dp
@@ -180,16 +225,44 @@ fun LifeLedgerTheme(
     }
 
     CompositionLocalProvider(
-        LocalAppColors provides colors,
+        LocalAppColors provides baseColors,
+        LocalAppPageColor provides pageColor,
         LocalAppTypography provides AppType,
         LocalAppDisplay provides display,
         LocalDensity provides density
     ) {
         MaterialTheme(
-            colorScheme = colors.toColorScheme(),
+            colorScheme = baseColors.toColorScheme(pageColor),
             typography = LegacyMaterialTypography,
             shapes = AppShapes,
-            content = content
-        )
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(contentModifier)
+                ) {
+                    if (backgroundImageSet) {
+                        if (backgroundImage != null) {
+                            Image(
+                                bitmap = backgroundImage,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        // 唯一的遮罩层：强度越低调越淡，图片越清楚
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(baseColors.background.copy(alpha = 1f - opacity))
+                        )
+                    }
+                    content()
+                }
+
+                overlay()
+            }
+        }
     }
 }

@@ -54,7 +54,7 @@ fun OnboardingScreen(
 ) {
     val colors = AppTheme.colors
 
-    Scaffold(containerColor = colors.background) { innerPadding ->
+    Scaffold(containerColor = AppTheme.pageColor) { innerPadding ->
         // 还在判断要不要问（老用户）：什么都不画，避免闪一下
         if (uiState.stage == OnboardingStage.CHECKING) {
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding))

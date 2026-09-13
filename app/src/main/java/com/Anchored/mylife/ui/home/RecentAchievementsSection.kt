@@ -29,6 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.Anchored.mylife.R
 import com.Anchored.mylife.ui.RecentAchievement
+import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.components.AppTextLink
 import com.Anchored.mylife.ui.components.RarityBadge
 import com.Anchored.mylife.ui.components.SectionHeader
@@ -103,8 +105,10 @@ private fun RecentAchievementCard(
     val achievement = item.achievement
     val shape = RoundedCornerShape(Radius.md)
 
-    Column(
-        modifier = modifier.clickable(onClick = onClick)
+    AppCard(
+        modifier = modifier.clickable(onClick = onClick),
+        tone = AppCardTone.Elevated,
+        contentPadding = PaddingValues(Spacing.sm)
     ) {
         Box(
             modifier = Modifier
@@ -135,7 +139,7 @@ private fun RecentAchievementCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(Spacing.sm))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         Text(
             text = achievement.title,

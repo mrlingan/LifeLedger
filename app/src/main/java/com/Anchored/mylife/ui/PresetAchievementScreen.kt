@@ -54,6 +54,7 @@ import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.components.CompletionConfirmDialog
 import com.Anchored.mylife.ui.components.AppTopBarStyle
 import com.Anchored.mylife.ui.components.EmptyState
+import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.components.RarityBadge
 import com.Anchored.mylife.ui.components.appearAnimation
 import com.Anchored.mylife.ui.components.label
@@ -151,7 +152,7 @@ fun PresetCodexScreen(
     val entries = uiState.gridItems(textOf)
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         )
@@ -164,7 +165,8 @@ fun PresetCodexScreen(
             contentPadding = PaddingValues(
                 start = Sizes.gutter,
                 end = Sizes.gutter,
-                bottom = Spacing.xxxl
+                // 底栏是浮在内容上的：末尾再多留出它压住的高度
+                bottom = Spacing.xxxl + LocalBottomBarClearance.current
             ),
             horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.xxl)

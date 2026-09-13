@@ -9,42 +9,42 @@ import androidx.compose.ui.graphics.Color
  * 规则：**只有这个文件里允许出现 `Color(0x…)`**。
  * 页面和组件一律通过 `AppTheme.colors.xxx` 取语义色。
  *
- * 体系：中性灰阶 + 深墨色 + 单一强调青绿 + 状态色 + 稀有度金属色。
- * 强调色克制使用，稀有度色只出现在成就相关元素上。
+ * 体系：iOS 分组背景 + 系统蓝强调色 + 标准语义状态色。
+ * 页面只使用语义角色，不依赖某个系统主题下的具体色值。
  */
 
 // ---------------- 中性色阶 ----------------
-// 冷灰，带一点点青，避免纯灰发脏
-internal val Ink950 = Color(0xFF0B1011)
-internal val Ink900 = Color(0xFF0F1416)
-internal val Ink800 = Color(0xFF161D1F)
-internal val Ink700 = Color(0xFF212A2B)
-private val Gray600 = Color(0xFF4A5556)
-private val Gray500 = Color(0xFF6C7777)
-private val Gray400 = Color(0xFF8E9897)
-private val Gray300 = Color(0xFFB7BFBF)
-private val Gray200 = Color(0xFFD9DEDD)
-private val Gray150 = Color(0xFFE6EAE9)
-private val Gray100 = Color(0xFFEFF2F1)
-private val Gray50 = Color(0xFFF5F7F6)
+// 对齐 iOS 的 grouped background 和 system gray 层级
+internal val Ink950 = Color(0xFF000000)
+internal val Ink900 = Color(0xFF000000)
+internal val Ink800 = Color(0xFF1C1C1E)
+internal val Ink700 = Color(0xFF2C2C2E)
+private val Gray600 = Color(0xFF636366)
+private val Gray500 = Color(0xFF6C6C70)
+private val Gray400 = Color(0xFF8E8E93)
+private val Gray300 = Color(0xFFC7C7CC)
+private val Gray200 = Color(0xFFD1D1D6)
+private val Gray150 = Color(0xFFE5E5EA)
+private val Gray100 = Color(0xFFE5E5EA)
+private val Gray50 = Color(0xFFF2F2F7)
 private val PureWhite = Color(0xFFFFFFFF)
 
-// ---------------- 强调：低饱和青绿 ----------------
-private val Teal900 = Color(0xFF16302B)
-private val Teal700 = Color(0xFF2A5A50)
-private val Teal600 = Color(0xFF35695E)
-private val Teal300 = Color(0xFF9CC4BB)
-private val Teal50 = Color(0xFFEEF4F2)
+// ---------------- 强调：iOS System Blue ----------------
+private val Teal900 = Color(0xFF003A75)
+private val Teal700 = Color(0xFF0066CC)
+private val Teal600 = Color(0xFF007AFF)
+private val Teal300 = Color(0xFF64D2FF)
+private val Teal50 = Color(0xFFEAF3FF)
 
 // ---------------- 状态 ----------------
-private val Green600 = Color(0xFF3F7A5E)
-private val Green400 = Color(0xFF7FBEA0)
-private val Amber600 = Color(0xFFA9762E)
-private val Amber400 = Color(0xFFD8B070)
-private val Red600 = Color(0xFFA8443C)
-private val Red400 = Color(0xFFE29A92)
-private val Slate600 = Color(0xFF4A6C8C)
-private val Slate400 = Color(0xFF93B4CE)
+private val Green600 = Color(0xFF34C759)
+private val Green400 = Color(0xFF30D158)
+private val Amber600 = Color(0xFFFF9500)
+private val Amber400 = Color(0xFFFF9F0A)
+private val Red600 = Color(0xFFFF3B30)
+private val Red400 = Color(0xFFFF453A)
+private val Slate600 = Color(0xFF007AFF)
+private val Slate400 = Color(0xFF0A84FF)
 
 // ---------------- 稀有度：金属色 ----------------
 // 只在成就图标、稀有度徽章、进度这类元素上使用，不做大面积铺色
@@ -60,12 +60,11 @@ private val Legendary600 = Color(0xFF9B3D5E)
 private val Legendary400 = Color(0xFFC4718D)
 
 // ---------------- 深色模式专用中性值 ----------------
-private val DarkTextPrimary = Color(0xFFE9EDEC)
-private val DarkTextSecondary = Color(0xFF9AA5A4)
-private val DarkTextTertiary = Color(0xFF6E7978)
-private val DarkDivider = Color(0xFF252E2F)
-private val DarkBorder = Color(0xFF2E3839)
-private val DarkAccentStrong = Color(0xFF7FBFAF)
+private val DarkTextPrimary = Color(0xFFF2F2F7)
+private val DarkTextSecondary = Color(0xFFAEAEB2)
+private val DarkTextTertiary = Color(0xFF8E8E93)
+private val DarkDivider = Color(0xFF38383A)
+private val DarkBorder = Color(0xFF48484A)
 
 /** 稀有度档位。数据库里的 rarity 字符串到档位的映射放到图鉴重构阶段处理。 */
 enum class RarityTier {
@@ -92,6 +91,30 @@ enum class RarityTier {
         }
     }
 }
+
+/**
+ * 液态玻璃专用色。
+ *
+ * 玻璃不是一块有固定颜色的表面：它的观感来自「底色多奶、上缘多亮、边缘多硬」，
+ * 所以这里按角色拆开，浅色与深色各给一套，页面和组件不要再自己调白色百分比。
+ */
+@Immutable
+data class GlassColors(
+    /** 玻璃底色。alpha 就是「奶度」：越大越糊，越小越透 */
+    val tint: Color,
+    /** 上缘高光渐变：从这条亮边往下淡出 */
+    val sheen: Color,
+    /** 描边：上缘提亮、下缘压暗，玻璃才有厚度转折 */
+    val rimTop: Color,
+    val rimBottom: Color,
+    /** 设备不支持采样时铺的磨砂底色 */
+    val frosted: Color,
+    /** 选中态玻璃滴的底色，比整条栏更亮一点才浮得起来 */
+    val droplet: Color,
+    val dropletSheen: Color,
+    val dropletRimTop: Color,
+    val dropletRimBottom: Color
+)
 
 /**
  * 语义色。页面只认这些名字，不认具体色值。
@@ -132,7 +155,10 @@ data class AppColors(
     val silver: Color,
     val gold: Color,
     val platinum: Color,
-    val legendary: Color
+    val legendary: Color,
+
+    // 液态玻璃
+    val glass: GlassColors
 ) {
     fun rarityColor(tier: RarityTier): Color = when (tier) {
         RarityTier.Bronze -> bronze
@@ -166,7 +192,19 @@ internal val LightAppColors = AppColors(
     silver = Silver600,
     gold = Gold600,
     platinum = Platinum600,
-    legendary = Legendary600
+    legendary = Legendary600,
+    // 浅色玻璃：偏白的奶玻璃，上缘亮、下缘收一条极淡的暗边
+    glass = GlassColors(
+        tint = Color(0x7AFFFFFF),
+        sheen = Color(0x59FFFFFF),
+        rimTop = Color(0xB3FFFFFF),
+        rimBottom = Color(0x14000000),
+        frosted = Color(0x8CFFFFFF),
+        droplet = Color(0x6BFFFFFF),
+        dropletSheen = Color(0x73FFFFFF),
+        dropletRimTop = Color(0xCCFFFFFF),
+        dropletRimBottom = Color(0x1F000000)
+    )
 )
 
 internal val DarkAppColors = AppColors(
@@ -182,7 +220,7 @@ internal val DarkAppColors = AppColors(
     border = DarkBorder,
     accent = Teal300,
     accentSoft = Teal900,
-    accentStrong = DarkAccentStrong,
+    accentStrong = Teal300,
     onAccent = Ink900,
     success = Green400,
     warning = Amber400,
@@ -192,5 +230,17 @@ internal val DarkAppColors = AppColors(
     silver = Silver400,
     gold = Gold400,
     platinum = Platinum400,
-    legendary = Legendary400
+    legendary = Legendary400,
+    // 深色玻璃：不是纯黑，带一点灰才有玻璃的实体感
+    glass = GlassColors(
+        tint = Color(0x8C2C2C2E),
+        sheen = Color(0x1FFFFFFF),
+        rimTop = Color(0x3DFFFFFF),
+        rimBottom = Color(0x0AFFFFFF),
+        frosted = Color(0xD92C2C2E),
+        droplet = Color(0x3DFFFFFF),
+        dropletSheen = Color(0x33FFFFFF),
+        dropletRimTop = Color(0x66FFFFFF),
+        dropletRimBottom = Color(0x14FFFFFF)
+    )
 )

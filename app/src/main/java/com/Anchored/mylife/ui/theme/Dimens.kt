@@ -83,6 +83,8 @@ data class AppSizes(
     val bottomBar: Dp = 56.dp,
     /** 底部导航中间那个主操作按钮的边长 */
     val bottomBarAction: Dp = 44.dp,
+    /** 主题设置里背景图预览条的高度 */
+    val wallpaperPreview: Dp = 88.dp,
     /** 开关：轨道宽 / 轨道高 / 滑块直径 */
     val switchWidth: Dp = 44.dp,
     val switchHeight: Dp = 26.dp,

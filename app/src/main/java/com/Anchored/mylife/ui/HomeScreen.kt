@@ -5,6 +5,7 @@ import com.Anchored.mylife.R
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,8 +28,11 @@ import androidx.navigation.NavHostController
 import com.Anchored.mylife.data.database.Achievement
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppAvatar
+import com.Anchored.mylife.ui.components.AppDialog
+import com.Anchored.mylife.ui.components.AppDialogText
 import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.components.EmptyState
+import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.home.CategoryProgressSection
 import com.Anchored.mylife.ui.home.HomeFooter
 import com.Anchored.mylife.ui.home.HomeHeader
@@ -62,6 +66,7 @@ fun HomeRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val presetTexts = rememberPresetTexts()
     var showAddOptions by remember { mutableStateOf(false) }
+    var showLevelProgress by remember { mutableStateOf(false) }
 
     HomeScreen(
         uiState = uiState,
@@ -69,6 +74,7 @@ fun HomeRoute(
         onAchievementClick = { id -> navController.navigate("achievement_detail/$id") },
         onAddClick = { showAddOptions = true },
         onOpenProfile = { navController.navigate("profile") },
+        onLevelClick = { showLevelProgress = true },
         // 图鉴和成就列表都是底部导航的 tab，用 tab 切换保证选中态与返回栈一致
         onOpenCodex = { navController.navigateToTab(ROUTE_CODEX_BROWSE) },
         onOpenAllAchievements = { navController.navigateToTab(ROUTE_ACHIEVEMENTS) }
@@ -87,6 +93,21 @@ fun HomeRoute(
             }
         )
     }
+    if (showLevelProgress) {
+        AppDialog(
+            title = stringResource(R.string.home_level_dialog_title),
+            onDismissRequest = { showLevelProgress = false },
+            onConfirm = { showLevelProgress = false },
+            confirmText = stringResource(R.string.common_got_it),
+            dismissText = null
+        ) {
+            // 等级体系还没做，先给一句实话；正文包在 Column 里，
+            // 因为对话框的正文槽是 Box，直接放多个子项会叠在一起
+            Column {
+                AppDialogText(stringResource(R.string.common_coming_soon))
+            }
+        }
+    }
 }
 
 @Composable
@@ -96,18 +117,22 @@ fun HomeScreen(
     onAchievementClick: (Long) -> Unit,
     onAddClick: () -> Unit,
     onOpenProfile: () -> Unit,
+    onLevelClick: () -> Unit,
     onOpenCodex: () -> Unit,
     onOpenAllAchievements: () -> Unit
 ) {
     val colors = AppTheme.colors
     val profileLabel = stringResource(R.string.profile_title)
 
-    Scaffold(containerColor = colors.background) { innerPadding ->
+    Scaffold(containerColor = AppTheme.pageColor) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = Spacing.xxxl)
+            // 底栏是浮在内容上的：末尾再多留出它压住的高度
+            contentPadding = PaddingValues(
+                bottom = Spacing.xxxl + LocalBottomBarClearance.current
+            )
         ) {
             item(key = "header") {
                 HomeHeader(
@@ -159,7 +184,7 @@ fun HomeScreen(
                 }
             } else {
                 item(key = "life_progress") {
-                    LifeProgressSection(uiState = uiState)
+                    LifeProgressSection(uiState = uiState, onClick = onLevelClick)
                 }
 
                 item(key = "overview") {
@@ -313,6 +338,7 @@ private fun HomeScreenPreview() {
             onAchievementClick = {},
             onAddClick = {},
             onOpenProfile = {},
+            onLevelClick = {},
             onOpenCodex = {},
             onOpenAllAchievements = {}
         )
@@ -329,6 +355,7 @@ private fun HomeScreenEmptyPreview() {
             onAchievementClick = {},
             onAddClick = {},
             onOpenProfile = {},
+            onLevelClick = {},
             onOpenCodex = {},
             onOpenAllAchievements = {}
         )
@@ -345,6 +372,7 @@ private fun HomeScreenDarkPreview() {
             onAchievementClick = {},
             onAddClick = {},
             onOpenProfile = {},
+            onLevelClick = {},
             onOpenCodex = {},
             onOpenAllAchievements = {}
         )

@@ -1,13 +1,16 @@
 package com.Anchored.mylife.data.reminder
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.Anchored.mylife.MainActivity
 import com.Anchored.mylife.R
 
@@ -23,6 +26,17 @@ object ReminderNotifications {
     private const val NOTIFICATION_ID = 4301
 
     fun show(context: Context) {
+        // Android 13 起通知是运行时权限：没授权就直接跳过，
+        // 否则部分 ROM 上 notify 会抛 SecurityException。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
         ensureChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {

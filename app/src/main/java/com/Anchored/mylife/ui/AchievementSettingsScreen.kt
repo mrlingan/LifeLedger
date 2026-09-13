@@ -76,7 +76,7 @@ fun AchievementSettingsScreen(
     val presetTexts = rememberPresetTexts()
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),

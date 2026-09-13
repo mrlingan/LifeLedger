@@ -32,5 +32,8 @@ local.properties
 *.hprof
 .vs/
 
+# 误落库的 adb backup 产物（不是项目的一部分）
+/application.backup
+
 # 截图流水线的临时产物（数据库、照片、截图原图、UI dump）
 /scripts/screenshots/work/

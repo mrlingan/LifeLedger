@@ -107,7 +107,7 @@ fun BackupRoute(
         onBack = { navController.popBackStack() },
         onExportClick = { showExportDialog = true },
         onImportClick = {
-            importLauncher.launch(
+            importLauncher.launchExternal(
                 arrayOf("application/zip", "application/octet-stream", "*/*")
             )
         },
@@ -140,7 +140,7 @@ fun BackupRoute(
             onConfirm = { passphrase ->
                 exportPassphrase = passphrase
                 showExportDialog = false
-                exportLauncher.launch(viewModel.suggestedFileName())
+                exportLauncher.launchExternal(viewModel.suggestedFileName())
             }
         )
     }
@@ -239,7 +239,7 @@ fun BackupScreen(
     val colors = AppTheme.colors
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),

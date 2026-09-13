@@ -1,6 +1,7 @@
 package com.Anchored.mylife.data.settings
 
 import android.content.Context
+import com.Anchored.mylife.data.crypto.AppPin
 import com.Anchored.mylife.data.repository.AchievementRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,9 @@ enum class FontScaleChoice(val scale: Float) {
 
 /** 动效强度 */
 enum class MotionChoice {
+    /** 优雅：更舒展的时长与柔和减速，适合沉浸式浏览 */
+    ELEGANT,
+
     /** 完整：入场、进度增长、页面转场都有 */
     FULL,
 
@@ -73,8 +77,61 @@ class AppSettings(context: Context) {
     private val _themeMode = MutableStateFlow(readThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
+    private val _backgroundImageUri = MutableStateFlow(prefs.getString(KEY_BACKGROUND_IMAGE_URI, null))
+    val backgroundImageUri: StateFlow<String?> = _backgroundImageUri.asStateFlow()
+
+    /**
+     * 背景图片的显示强度，取值 [BACKGROUND_OPACITY_MIN]..[BACKGROUND_OPACITY_MAX]。
+     *
+     * 数值越大图片越明显：主题层用 `1 - 这个值` 作为页面遮罩的不透明度，
+     * 所以这里不叫"透明度"，免得和界面上的百分号对不上。
+     */
+    private val _backgroundImageOpacity = MutableStateFlow(
+        prefs.getFloat(KEY_BACKGROUND_IMAGE_OPACITY, BACKGROUND_OPACITY_DEFAULT)
+            .coerceIn(BACKGROUND_OPACITY_MIN, BACKGROUND_OPACITY_MAX)
+    )
+    val backgroundImageOpacity: StateFlow<Float> = _backgroundImageOpacity.asStateFlow()
+
+    fun setBackgroundImageUri(uri: String?) {
+        prefs.edit().putString(KEY_BACKGROUND_IMAGE_URI, uri).apply()
+        _backgroundImageUri.value = uri
+    }
+
+    fun setBackgroundImageOpacity(opacity: Float) {
+        val clamped = opacity.coerceIn(BACKGROUND_OPACITY_MIN, BACKGROUND_OPACITY_MAX)
+        prefs.edit().putFloat(KEY_BACKGROUND_IMAGE_OPACITY, clamped).apply()
+        _backgroundImageOpacity.value = clamped
+    }
+
     private val _appLockEnabled = MutableStateFlow(prefs.getBoolean(KEY_APP_LOCK, false))
     val appLockEnabled: StateFlow<Boolean> = _appLockEnabled.asStateFlow()
+
+    /**
+     * 应用密码的落盘值（PBKDF2 派生 + 盐，见 [com.Anchored.mylife.data.crypto.AppPin]）。
+     *
+     * null 表示没设过。界面只关心"设没设"，校验一律走 AppPin.verify。
+     */
+    private val _appPinHash = MutableStateFlow(prefs.getString(KEY_APP_PIN_HASH, null))
+    val appPinHash: StateFlow<String?> = _appPinHash.asStateFlow()
+
+    /**
+     * 设置应用密码。
+     *
+     * 派生一次 PBKDF2 要 100ms 上下，**调用方要放到后台线程**（见 SettingsViewModel）。
+     * 密码不合规直接拒绝，返回 false。
+     */
+    fun setAppPin(pin: String): Boolean {
+        if (!AppPin.isWellFormed(pin)) return false
+        val stored = AppPin.hash(pin)
+        prefs.edit().putString(KEY_APP_PIN_HASH, stored).apply()
+        _appPinHash.value = stored
+        return true
+    }
+
+    fun clearAppPin() {
+        prefs.edit().remove(KEY_APP_PIN_HASH).apply()
+        _appPinHash.value = null
+    }
 
     private val _nickname = MutableStateFlow(prefs.getString(KEY_NICKNAME, "").orEmpty())
     val nickname: StateFlow<String> = _nickname.asStateFlow()
@@ -252,24 +309,37 @@ class AppSettings(context: Context) {
         )
     }.getOrDefault(ThemeMode.SYSTEM)
 
-    private companion object {
-        const val PREFS_NAME = "lifeledger_settings"
-        const val KEY_THEME_MODE = "theme_mode"
-        const val KEY_APP_LOCK = "app_lock_enabled"
-        const val KEY_NICKNAME = "profile_nickname"
-        const val KEY_SIGNATURE = "profile_signature"
-        const val KEY_AVATAR_PATH = "profile_avatar_path"
-        const val KEY_START_CHOICE = "start_choice"
-        const val KEY_DATA_ENCRYPTION = "data_encryption_enabled"
-        const val KEY_DEFAULT_ICON = "default_icon"
-        const val KEY_CONFIRM_COMPLETION = "confirm_completion"
-        const val KEY_FAVORITE_CATEGORIES = "favorite_categories"
-        const val KEY_LIST_DENSITY = "list_density"
-        const val KEY_FONT_SCALE = "font_scale"
-        const val KEY_MOTION = "motion_level"
-        const val KEY_REMINDER_ENABLED = "reminder_enabled"
-        const val KEY_REMINDER_HOUR = "reminder_hour"
-        const val KEY_REMINDER_MINUTE = "reminder_minute"
-        const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
+    companion object {
+        /**
+         * 背景图默认强度。
+         *
+         * 旧实现把页面底色的不透明度写死成 0.82，图片本身只剩 18%，
+         * 页面再叠一层同样的底色后实际不到 4%，等于看不见。
+         */
+        const val BACKGROUND_OPACITY_DEFAULT = 0.45f
+        const val BACKGROUND_OPACITY_MIN = 0.05f
+        const val BACKGROUND_OPACITY_MAX = 0.90f
+
+        private const val PREFS_NAME = "lifeledger_settings"
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_BACKGROUND_IMAGE_URI = "background_image_uri"
+        private const val KEY_BACKGROUND_IMAGE_OPACITY = "background_image_opacity"
+        private const val KEY_APP_LOCK = "app_lock_enabled"
+        private const val KEY_APP_PIN_HASH = "app_pin_hash"
+        private const val KEY_NICKNAME = "profile_nickname"
+        private const val KEY_SIGNATURE = "profile_signature"
+        private const val KEY_AVATAR_PATH = "profile_avatar_path"
+        private const val KEY_START_CHOICE = "start_choice"
+        private const val KEY_DATA_ENCRYPTION = "data_encryption_enabled"
+        private const val KEY_DEFAULT_ICON = "default_icon"
+        private const val KEY_CONFIRM_COMPLETION = "confirm_completion"
+        private const val KEY_FAVORITE_CATEGORIES = "favorite_categories"
+        private const val KEY_LIST_DENSITY = "list_density"
+        private const val KEY_FONT_SCALE = "font_scale"
+        private const val KEY_MOTION = "motion_level"
+        private const val KEY_REMINDER_ENABLED = "reminder_enabled"
+        private const val KEY_REMINDER_HOUR = "reminder_hour"
+        private const val KEY_REMINDER_MINUTE = "reminder_minute"
+        private const val KEY_REMINDER_FREQUENCY = "reminder_frequency"
     }
 }

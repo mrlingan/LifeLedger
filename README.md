@@ -94,7 +94,8 @@
 - **动画**：完整 / 精简 / 关闭
 - **备份与恢复**：导出、导入，以及当前数据量
 - **每日提醒**：设定时间与频率（每天 / 工作日），到点用系统闹钟在本机弹一条通知；不引入 WorkManager
-- **应用锁**：指纹、面容或锁屏密码；离开超过 30 秒自动重新锁定
+- **应用锁**：应用密码与指纹 / 面容两把锁，可以同时开也可以只开一把；**开关关掉的那把不会出现在解锁界面**（设备支持 ≠ 用户开启）；离开超过 30 秒自动重新锁定
+- **移除应用密码**：设置里单独一项，要输当前密码确认；不和「保存新密码」挤在同一个弹窗里
 - **数据安全**：数据存放位置、**本地加密开关**、备份入口
 - **个人资料**：昵称、头像、个人签名；昵称会出现在首页问候语里，签名出现在问候语下面。头像复制进应用私有目录，不依赖相册原图
 - **关于**：版本号与开源许可
@@ -103,7 +104,7 @@
 
 - 完整的自定义设计系统（颜色 / 字体 / 间距 / 圆角 / 动效）
 - **没有使用任何 Material 默认观感的组件**：卡片、按钮、输入框、弹窗、开关、筛选器全部自己实现
-- **底部导航**：首页 / 成就 / 图鉴 / 设置四个入口，进详情、新建、备份这类二级页面时自动收起；选中态只用强调色，没有选中色块和指示器
+- **底部导航**：首页 / 成就 / 图鉴 / 设置四个入口 + 正中间的「记录成就」；整条栏是一块**液态玻璃**——AGSL 单 pass 着色器按圆角矩形 SDF 折射背后的页面，带边缘色散与描边高光，内容从玻璃底下穿过；选中态是一颗**玻璃滴**，切换时滑动、拉长、落位回缩，也可以按住拖着走、松手吸附到最近的 tab；进详情、新建、备份这类二级页面时自动收起
 - 深色模式独立调色，不是简单的黑白反转
 - **中英双语**：跟随系统语言切换，图鉴的 109 条标题 / 描述 / 故事都有完整英文版
 
@@ -164,6 +165,8 @@ ui/theme/
 
 公共组件位于 `ui/components/`：`AppTopBar`、`AppBottomBar`、`AppCard`、`AppButton`、`AppIconButton`、`AppTextLink`、`AppTextField`、`AppDialog`、`AppSnackbar`、`AppChip`、`AppSwitch`、`AppSettingRow`、`SegmentedControl`、`AchievementCard`、`RarityBadge`、`StatusBadge`、`MetricNumber` / `StatTile`、`ProgressBar` / `ProgressRing` / `IndeterminateBar`、`SectionHeader` / `TimelineItem`、`EmptyState`、`AppearAnimation`。
 
+液态玻璃在 `ui/components/liquidglass/`：`LiquidGlassBackdrop`（把「背景 + 页面」录进一层 GPU 图层当采样源）、`LiquidGlassSurface`（折射 / 色散 / 描边高光，API 33+ 走着色器，31–32 退化到模糊，更低版本是纯色磨砂）、`LiquidGlassTabBar`（底栏与玻璃滴）。着色器源码在 `res/raw/liquidglass_effect.agsl`。
+
 ---
 
 ## 快速开始
@@ -217,7 +220,7 @@ app/src/main/
 │   │   ├── repository/    仓库层与统一入口
 │   │   └── settings/      应用设置（SharedPreferences）
 │   └── ui/
-│       ├── components/    公共 UI 组件
+│       ├── components/    公共 UI 组件（liquidglass/ 为液态玻璃）
 │       ├── home/          首页区块（问候、人生进度、核心数据、分类进度、最近解锁）
 │       ├── codex/         图鉴条目与进度区块
 │       ├── theme/         设计系统
@@ -356,6 +359,8 @@ pwsh -File scripts/preset_i18n/generate_preset_i18n.ps1
 ## 致谢
 
 - [EarthOnline-Achievement](https://github.com/LKlingkong/EarthOnline-Achievement) —— 109 条预设成就的数据来源
+- [AndroidLiquidGlassView](https://github.com/QmDeve/AndroidLiquidGlassView)（Donny Yang，MIT）—— 底部导航的 AGSL 液态玻璃折射 / 色散管线
+- [HeyBox-LiquidGlass](https://github.com/sjtt2/HeyBox-LiquidGlass)（MIT）—— 上述管线的集成方式与玻璃滴交互参考
 - [AndroidX](https://developer.android.com/jetpack) —— Room / Compose / Navigation / Biometric
 - [Material Symbols](https://fonts.google.com/icons) —— 界面功能图标
 

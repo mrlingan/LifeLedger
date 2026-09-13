@@ -33,6 +33,7 @@ import com.Anchored.mylife.ui.components.AppSegmentedControl
 import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.components.CompletionConfirmDialog
 import com.Anchored.mylife.ui.components.EmptyState
+import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.components.appearAnimation
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Sizes
@@ -94,7 +95,7 @@ fun AllAchievementsScreen(
     var pendingCompleteId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
-        containerColor = colors.background,
+        containerColor = AppTheme.pageColor,
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),
@@ -146,7 +147,10 @@ fun AllAchievementsScreen(
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = Spacing.xxxl)
+                    // 底栏是浮在内容上的：末尾再多留出它压住的高度
+                    contentPadding = PaddingValues(
+                        bottom = Spacing.xxxl + LocalBottomBarClearance.current
+                    )
                 ) {
                     itemsIndexed(
                         items = uiState.visibleAchievements,
