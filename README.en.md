@@ -13,8 +13,11 @@ A **fully offline** Android app for recording personal achievements. No account,
 ![minSdk](https://img.shields.io/badge/minSdk-24-orange)
 ![Offline](https://img.shields.io/badge/Offline-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
+![Version](https://img.shields.io/badge/Version-1.2.5-1F6FEB)
 
 > **Rather not build it yourself?** Download the APK from [Releases](https://github.com/mrlingan/LifeLedger/releases/latest) and install it. Android 7.0 and above.
+
+> Current version **v1.2.5** (versionCode 6) · [Changelog](#changelog)
 
 Built and maintained by **[mrlingan](https://github.com/mrlingan)**.
 
@@ -46,10 +49,11 @@ This project tries something a little different — it treats **what has already
 - Greeting, date and a one-line encouragement (your own nickname and signature once you set them), with "add achievement" on the right
 - Once you set a nickname or a photo, your avatar appears in the top-left corner and taps through to your profile
 - **Life progress**: a stage (one stage per 5 completed achievements) with the bar and the percentage side by side, and how many are left to the next stage
-- **Core data**: completed / in progress / total records / days recorded (with the current streak) — four figures in one row, label above number
+- **Core data**: completed / in progress / total records / days recorded — four figures in one row, label above number, nothing else
 - **Category progress**: how much of each codex category you have collected, five small rings plus a "View all" link into the codex
 - **Recently unlocked**: cards for the latest 3, with a cover (your own photo if there is one, otherwise the first character of the title), title, description and rarity — exact dates are not shown here, only inside the detail screen
 - One closing line — "Recording since X · N days"
+- **Modular sections**: everything below the greeting can be switched off or dragged into a new order under Settings → Home sections (long-press any row to start editing). Three are on by default — **life progress / metrics / category progress** — because "recent unlocks" adds three cards, "recording since" is a single date, and "custom image" needs an image first; turn them on in settings whenever you want them. Hide them all and the home screen offers a shortcut straight back
 - The home screen is overview only — **no achievement list on it**, so it never grows longer as you record more
 
 ### 🏆 Achievements · kept apart from the home screen
@@ -87,9 +91,14 @@ This project tries something a little different — it treats **what has already
 
 ### ⚙️ Settings
 
-- **Achievements**: default icon for new achievements, a confirmation step before completing, favourite categories (they sort first on the home screen and in the list)
+- **Achievements**: the default icon for new achievements (a built-in emoji, or **your own uploaded image**), a confirmation step before completing, favourite categories (they sort first on the home screen and in the list)
 - **Theme**: follow system / light / dark
+- **Liquid glass**: one switch (on by default) for whether cards and the bottom bar refract what is behind them; the settings sub-pages, segmented controls, buttons and selected chips use the same material; turn it off for flat surfaces (a handy battery switch too)
 - **Language**: follow system / 简体中文 / English
+- **Home sections**: one list, and its order is the home screen's order. **Long-press any row to start editing** — a ⊖ / ⊕ appears on the left (hide / put back) and a ≡ drag handle on the right. Changes apply immediately, there is nothing to save
+- **Category colours**: tucked under the "Core data" row — tap it to expand — give each codex category its own ring colour (the five rings in the home screen's category progress); anything you leave alone follows the theme accent. Display only
+- **Categories of your own**: when creating or editing an achievement you can give it a category — or make a new one on the spot — and the home screen's category progress has switches for which five it shows (five at most)
+- **Custom image**: put a picture of your own on the home screen, cropped by dragging and pinching as you upload; the card is 72dp tall, less than half of the life-progress card. **With no image it never shows, even if the switch is on**
 - **Display**: list density (compact / standard / comfy) and font scale
 - **Animation**: full / reduced / off
 - **Backup and restore**: export, import, and how much data you have
@@ -97,7 +106,7 @@ This project tries something a little different — it treats **what has already
 - **App lock**: the app password and fingerprint / face are two independent locks — use either or both. **A lock you turned off never appears on the lock screen** (a capable device is not the same as an enabled setting); re-locks 30 seconds after you leave the app
 - **Remove app password**: its own entry in settings, confirmed with the current password — not a button squeezed in next to "save"
 - **Data security**: where your data lives, the **local encryption switch**, and a shortcut to backup
-- **Profile**: nickname, avatar and a personal signature; the nickname shows up in the home greeting and the signature right under it. The avatar is copied into app-private storage, so it does not depend on your gallery
+- **Profile**: nickname, avatar and a personal signature; the nickname shows up in the home greeting and the signature right under it. There are eight built-in avatars (sunrise, wave, mountain, leaf, moon, cloud, sparkle, petal — drawn in code, nothing added to the APK), or upload your own photo, which is copied into app-private storage so it does not depend on your gallery. **An avatar can be swapped but not removed**: with no built-in avatar picked and no photo uploaded, the avatar is the first character of your nickname
 - **About**: version number and open-source licences
 
 ### 🎨 Interface
@@ -105,6 +114,10 @@ This project tries something a little different — it treats **what has already
 - A complete custom design system (colour / type / spacing / radius / motion)
 - **No default-looking Material components**: cards, buttons, text fields, dialogs, switches and filters are all hand-built
 - **Bottom navigation**: home / achievements / codex / settings plus a centre "record achievement" action. The bar itself is a slab of **liquid glass** — a single-pass AGSL shader refracts the page behind it along a rounded-rect SDF, with edge dispersion and a rim highlight, so content slides under the glass. The selection indicator is a **glass droplet** that slides, stretches and settles, and can be dragged and snapped onto the nearest tab. Hidden automatically on secondary screens (detail, new achievement, backup)
+- **The home and settings sections are liquid glass too**: the life progress / metrics / category progress / recent-unlock cards, the settings groups, and every settings sub-page (achievements, home sections, backup, reminder, data security) go through the same refraction pipeline, sampling the background layer (wallpaper + veil) so their edges bend the picture the way the bar does; with no wallpaper set there is nothing to bend, and the cards stay a milky slab with a sheen and a rim
+- **Buttons, segmented controls, selected chips and the numeric keypad on the lock screen and in dialogs share that material**: the accent buttons are tinted glass with an accent label rather than a solid blue slab, and where there is nothing to sample (dialogs live in their own window, the lock screen is opaque by design) it falls back to a frosted slab with the sheen and the rim
+- **Segmented controls move like the bottom bar**: the selected glass pill slides from the old option to the new one, stretching as it goes and settling back, and you can press and drag it straight onto the option you want; the labels sit above the pill so they stay crisp the whole way, and there is no ripple — the pill itself is the feedback
+- **The app password is typed on an in-app numeric keypad**: nothing about it depends on the system IME (no candidate bar, no suggestions, no keyboard height to fight), and setting or changing it is three steps — current password → new password → type it again — one question at a time
 - Dark mode has its own palette, not an inverted one
 - **Chinese and English**: follow the system language; all 109 codex titles, descriptions and stories are fully translated
 
@@ -119,6 +132,18 @@ This project tries something a little different — it treats **what has already
 | ![Codex](docs/screenshots/en/codex.png) | ![Settings](docs/screenshots/en/settings.png) | ![Dark mode](docs/screenshots/en/home-dark.png) |
 
 > Screenshots are taken from a real device. Chinese screenshots are in [README.md](README.md).
+
+The data in those screenshots was not tapped in by hand: **Settings → Developer options →
+Generate demo data** writes 26 achievements (22 from the codex, 4 written by hand),
+7 notes, 4 program-drawn photos and a profile, and turns every home section back on.
+It uses a fixed random seed, so generating twice gives the same structure — screenshots
+you retake later will not gain or lose a row. Change `DemoDataSeeder.SEED` for a different
+set. That group only opens up to debug builds: the package is either **signed with the
+default Android debug certificate** or is itself **debuggable**. When neither holds — a
+real release install — the group is not rendered at all, so there is nothing to hit by
+accident. Building a screenshot package with your release keystore? Flip
+`DemoAccess.FORCE_SHOW` to `true`. "Clear achievement data" next to it resets the slate
+for the next round.
 
 ---
 
@@ -165,7 +190,9 @@ A few rules that are deliberately followed:
 
 Public components live in `ui/components/`: `AppTopBar`, `AppBottomBar`, `AppCard`, `AppButton`, `AppIconButton`, `AppTextLink`, `AppTextField`, `AppDialog`, `AppSnackbar`, `AppChip`, `AppSwitch`, `AppSettingRow`, `SegmentedControl`, `AchievementCard`, `RarityBadge`, `StatusBadge`, `MetricNumber` / `StatTile`, `ProgressBar` / `ProgressRing` / `IndeterminateBar`, `SectionHeader` / `TimelineItem`, `EmptyState`, `AppearAnimation`.
 
-Liquid glass lives in `ui/components/liquidglass/`: `LiquidGlassBackdrop` (records "background + page" into one GPU layer to sample from), `LiquidGlassSurface` (refraction / dispersion / rim highlight — shader on API 33+, blur on 31–32, flat frost below), `LiquidGlassTabBar` (the bar and its droplet). Shader source: `res/raw/liquidglass_effect.agsl`.
+Liquid glass lives in `ui/components/liquidglass/`: `LiquidGlassBackdrop` (the sample source — two of them, actually: the theme records a "background" layer for the in-page glass cards, the nav host records "background + page" for the bar; glass must never be recorded into the layer it samples, so the two have to stay apart), `GlassSurface` (refraction / dispersion / rim highlight — shader on API 33+, blur on 31–32, flat frost below), `LiquidGlassTabBar` (the bar and its droplet) and `GlassStyles` (the small reusable slabs behind buttons and selected chips / rows). In a screen, `AppCard(tone = AppCardTone.Glass)` is a glass card.
+
+Two composition locals split the question in two: **do we want glass** is `LocalLiquidGlassEnabled`, **is there anything to refract** is whether `LocalLiquidGlassBackdrop` is null. Dialogs and the lock screen cannot sample what is behind them, so they null the sampling source — the glass is still there, there is simply nothing to bend. Note also that a `RenderEffect` bakes the `RuntimeShader` uniforms it had at creation time, so any uniform change (switching light / dark being the obvious one) has to rebuild the effect; otherwise the glass keeps the colours it was first created with and looks like it needs a restart. Shader source: `res/raw/liquidglass_effect.agsl`.
 
 ---
 
@@ -173,9 +200,16 @@ Liquid glass lives in `ui/components/liquidglass/`: `LiquidGlassBackdrop` (recor
 
 ### Install directly
 
-Download the latest `LifeLedger-vX.Y.Z.apk` from [Releases](https://github.com/mrlingan/LifeLedger/releases/latest), allow installing apps from unknown sources in your phone's settings, and install it. No account, and no network permission. The only permission it may ever ask for is notification access for the daily reminder, and only when you turn that reminder on.
+Download the APK from [Releases](https://github.com/mrlingan/LifeLedger/releases/latest), allow installing apps from unknown sources in your phone's settings, and install it. No account, and no network permission. The only permission it may ever ask for is notification access for the daily reminder, and only when you turn that reminder on.
 
-> Builds are signed with APK Signature Scheme v2, which covers `minSdk 24` (Android 7.0) and above. The SHA-256 for verification is in each release's notes.
+Every release ships two packages:
+
+| Package | What it is |
+| --- | --- |
+| `LifeLedger-v1.2.5.apk` | The signed release build — the one to install |
+| `LifeLedger-v1.2.5-debug.apk` | Debug build, with an extra "Settings → Developer options" group (generate demo data / clear achievement data) for reproducing the UI and retaking screenshots |
+
+> Both are signed with APK Signature Scheme v2, which covers `minSdk 24` (Android 7.0) and above. The SHA-256 for verification is in each release's notes.
 
 ### Build from source
 
@@ -215,14 +249,15 @@ app/src/main/
 │   │   ├── database/      entities, database, migrations, database provider
 │   │   ├── media/         media file copying, live photo parsing
 │   │   ├── preset/        preset achievement seeder
-│   │   ├── profile/       private copy of the avatar
+│   │   ├── profile/       private copy of the avatar + built-in avatar ids
 │   │   ├── reminder/      daily reminder (system alarm + notification + boot reschedule)
 │   │   ├── repository/    repository layer and single entry point
 │   │   └── settings/      app settings (SharedPreferences)
 │   └── ui/
-│       ├── components/    shared UI components (liquidglass/ = liquid glass)
+│       ├── components/    shared UI components (liquidglass/ = liquid glass; built-in avatars are drawn in PresetAvatar.kt)
 │       ├── home/          home sections (greeting, life progress, metrics, categories, recent)
 │       ├── codex/         codex entry and progress sections
+│       ├── demo/          demo data generator + the gate that decides who sees it
 │       ├── theme/         design system
 │       ├── AchievementNavHost.kt    navigation, theme, app lock
 │       ├── HomeScreen.kt / HomeViewModel.kt        home overview (no list)
@@ -235,6 +270,7 @@ app/src/main/
 │       ├── PresetAchievementScreen.kt / ViewModel
 │       ├── ProfileScreen.kt / ProfileViewModel.kt        profile
 │       ├── AchievementSettingsScreen.kt / ViewModel      achievement settings
+│       ├── HomeLayoutScreen.kt / HomeLayoutViewModel.kt  home section toggles and ordering
 │       ├── ReminderScreen.kt / ReminderViewModel.kt      daily reminder
 │       ├── DataSecurityScreen.kt / DataSecurityViewModel.kt   data security
 │       ├── SettingsScreen.kt / ViewModel
@@ -307,6 +343,59 @@ The script reads `source.tsv` (Chinese source) and `en.json` (English translatio
 
 ---
 
+## Changelog
+
+### v1.2.5 · versionCode 6
+
+The database moves from v4 to v5, with a migration — **install straight over the old one and nothing you recorded is touched**. This round is about arranging your own home screen, adding your own categories, and using your own pictures.
+
+**Home**
+
+- **Sections you arrange yourself**: Settings → Home sections is one list, and its order is the home screen's order. Long-press any row to start editing: ⊖ / ⊕ on the left hides or restores a section, ≡ on the right drags it into place. Changes apply immediately, there is nothing to save
+- **Core data**: the four cards now share one height — the label slot takes the tallest of the four, so an English label wrapping onto two lines no longer pushes its card up — and the supporting lines ("/ 110", "N-day streak") are gone. Four figures, nothing else
+- **Custom image**: a new section, uploaded with drag-and-pinch cropping and 72dp tall. With no image it never shows, even with the switch on
+- **Ring colours**: Settings → Home sections → Category colours, one colour per category; anything you leave alone follows the theme accent
+
+**Categories**
+
+- The achievement table gains a `category` column (v4 → v5 migration); entries brought in from the codex carry their category automatically
+- Creating or editing an achievement lets you pick a category — or make a new one on the spot. The list is the union of codex categories, your own, and the ones your achievements use, and every screen that offers it offers the same one
+- The home screen's category progress shows at most five, chosen with switches, and achievements you wrote yourself count too
+
+**Icons and avatars**
+
+- Achievement icons accept an image of your own now: emoji and images share the single column (an image is stored with a `file:` prefix), so there is no schema change and existing data is untouched. Backups carry the icon images with them
+- Profile gains **8 built-in avatars** (sunrise / wave / mountain / leaf / moon / cloud / sparkle / petal — drawn in code, nothing added to the APK), and you can still upload your own photo. **An avatar can be swapped but not removed**: with neither, it is the first character of your nickname
+
+**Liquid glass**
+
+- Refraction spreads from the bottom bar to the home cards, the settings groups, every settings sub-page, buttons, segmented controls, selected chips, and the numeric keypad on the lock screen and in dialogs. Where there is nothing to sample it falls back to a frosted slab with a sheen and a rim, so the material never breaks
+- A new **Liquid glass** switch turns it off for flat surfaces — which also saves a full-screen recording pass, handy on battery
+- Fixed a real one: a `RenderEffect` bakes the shader uniforms it had at creation, so after switching light / dark the glass kept the colours it was born with and looked like it needed a restart
+- Segmented controls share the bottom bar's motion: the glass pill slides from the old option to the new one, stretching on the way and settling at the end, and it can be pressed and dragged straight onto the option you want — the labels stay drawn above it the whole way
+
+**App lock**
+
+- The app password is typed on an **in-app numeric keypad**, with no system IME involved — no candidate bar, no suggestions, no keyboard height to fight, and no extra "open the keyboard / close the keyboard" step
+- Setting or changing the password is three steps — current → new → type it again — one question at a time
+
+**Other**
+
+- Settings gains **Developer options → Generate demo data / Clear achievement data**: 26 achievements, 7 notes, 4 program-drawn photos and a profile, from a fixed random seed. The group only renders for a debug signature or a debuggable package; a real release install never sees it
+- Backups now carry the built-in avatar id, custom icon images, the home image and the category preferences (your own categories, which five the home screen shows, the ring colours). Older backups still import
+- Local encryption now covers the achievement category field as well
+- Three new unit tests: `AchievementIconTest`, `AvatarPresetTest`, `CategoryCatalogTest`
+
+### Earlier versions
+
+- **v1.2-beta** (versionCode 5): liquid glass bottom bar (AGSL refraction and a draggable, snapping droplet) and the app lock (app password and biometrics as two independent locks)
+- **v1.1.0** (versionCode 4): the home screen redrawn as a life dashboard, the codex turned into an archive with three-way filtering, profile, the remaining settings, local encryption and optional passphrase backups
+- **v1.0.2** (versionCode 3): "All achievements" as its own page, the Google Play icon, a bilingual README
+- **v1.0.1** (versionCode 2): manual language switch, a custom launcher icon
+- **v1.0.0** (versionCode 1): first public release
+
+---
+
 ## Roadmap
 
 - [x] Create, edit, complete and delete achievements
@@ -322,6 +411,7 @@ The script reads `source.tsv` (Chinese source) and `en.json` (English translatio
 - [x] Daily reminder (system alarm + notification, no WorkManager)
 - [ ] Statistics screen: yearly recap, growth curve, timeline
 - [x] Display and animation intensity settings
+- [x] Freely customisable home sections (toggle and reorder, right in settings)
 - [x] Profile (nickname, avatar, signature)
 
 ---

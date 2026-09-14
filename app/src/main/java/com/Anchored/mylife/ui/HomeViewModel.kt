@@ -8,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.Anchored.mylife.data.database.Achievement
 import com.Anchored.mylife.data.database.AchievementMedia
 import com.Anchored.mylife.data.database.PresetAchievement
+import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.data.repository.RepositoryProvider
+import com.Anchored.mylife.data.settings.HomeSection
 import com.Anchored.mylife.ui.theme.RarityTier
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -75,8 +77,10 @@ data class HomeUiState(
     /** 个人资料：昵称会出现在问候语里，签名会出现在问候语下面 */
     val nickname: String = "",
     val signature: String = "",
-    /** 配了头像就显示在首页左上角 */
-    val avatarPath: String? = null
+    /** 配了头像就显示在首页左上角：上传的图片 */
+    val avatarPath: String? = null,
+    /** 或者他挑的那个内置头像 */
+    val avatarPreset: AvatarPreset? = null
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -87,30 +91,58 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val mediaRepository = repositories.mediaRepository
     private val settings = repositories.settings
 
+    /**
+     * 首页板块的显示顺序（由用户在「设置 → 首页板块」里决定）。
+     *
+     * 单独一条流，不并进 [uiState]：板块顺序和统计数据没有关系，
+     * 改顺序不该让整页统计重算一遍。
+     */
+    val homeSections: StateFlow<List<HomeSection>> = settings.homeSections
+
+    /**
+     * 分类圆环的颜色（用户在「设置 → 首页板块」里挑的）。
+     *
+     * 和板块顺序一样单独一条流：颜色只影响那一行圆环怎么画，
+     * 变更时没有任何统计需要重算。
+     */
+    val categoryColors: StateFlow<Map<String, String>> = settings.categoryColors
+
+    /** 首页自定义图片的路径；没上传过就是 null（那一段就不显示） */
+    val homeImagePath: StateFlow<String?> = settings.homeImagePath
+
     /** 个人资料打包成一个流：combine 直接接的上限是 5 个 */
     private val profile = combine(
         settings.nickname,
         settings.signature,
-        settings.avatarPath
-    ) { nickname, signature, avatarPath ->
-        Triple(nickname, signature, avatarPath)
+        settings.avatarPath,
+        settings.avatarPreset
+    ) { nickname, signature, avatarPath, avatarPreset ->
+        HomeProfile(nickname, signature, avatarPath, avatarPreset)
     }
+
+    /** 分类相关的两个偏好也打包：关注（影响排序）+ 挑过要显示的那几个（影响顺序） */
+    private val categoryPrefs = combine(
+        settings.favoriteCategories,
+        settings.homeCategories
+    ) { favorites, chosen -> favorites to chosen }
 
     val uiState: StateFlow<HomeUiState> = combine(
         achievementRepository.observeAllAchievements(),
         presetRepository.observeAll(),
         mediaRepository.observeAchievementImages(),
         profile,
-        settings.favoriteCategories
-    ) { achievements, presets, images, profileState, favorites ->
+        categoryPrefs
+    ) { achievements, presets, images, profileState, categories ->
         buildHomeState(
             achievements = achievements,
             presets = presets,
             images = images,
-            nickname = profileState.first,
-            signature = profileState.second,
-            avatarPath = profileState.third,
-            favoriteCategories = favorites
+            nickname = profileState.nickname,
+            signature = profileState.signature,
+            avatarPath = profileState.avatarPath,
+            avatarPreset = profileState.avatarPreset,
+            favoriteCategories = categories.first,
+            chosenCategories = categories.second
         )
     }.stateIn(
         scope = viewModelScope,
@@ -119,6 +151,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     )
 }
 
+/** 首页要知道的个人资料：问候语用昵称和签名，左上角用头像（图片或内置头像） */
+private data class HomeProfile(
+    val nickname: String,
+    val signature: String,
+    val avatarPath: String?,
+    val avatarPreset: AvatarPreset?
+)
+
 private fun buildHomeState(
     achievements: List<Achievement>,
     presets: List<PresetAchievement>,
@@ -126,7 +166,9 @@ private fun buildHomeState(
     nickname: String,
     signature: String,
     avatarPath: String?,
-    favoriteCategories: Set<String>
+    avatarPreset: AvatarPreset?,
+    favoriteCategories: Set<String>,
+    chosenCategories: List<String> = emptyList()
 ): HomeUiState {
     val completed = achievements.filter { it.isCompleted }
 
@@ -139,14 +181,27 @@ private fun buildHomeState(
     // 图鉴的「已达成」= 存在一条 presetId 相同、且已完成的成就（和图鉴页同一套判定）
     val unlockedPresetIds = completed.mapNotNull { it.presetId }.toSet()
 
-    // 分类进度：按图鉴分类统计，没有关联图鉴的自建成就自然不计入
-    val categories = presets
+    // 分类进度：图鉴的分类按"图鉴条目"统计；用户自己写、又挑了分类的成就，
+    // 按"自己的完成情况"补上——自建分类因此也能出现在首页那一行里
+    val statsByCategory = LinkedHashMap<String, Pair<Int, Int>>() // 分类 -> (已完成, 总数)
+    presets.groupBy { it.category }.forEach { (category, items) ->
+        statsByCategory[category] = items.count { it.id in unlockedPresetIds } to items.size
+    }
+    achievements
+        .filter { it.presetId == null && it.category.isNotBlank() }
         .groupBy { it.category }
-        .map { (category, items) ->
+        .forEach { (category, items) ->
+            val current = statsByCategory[category] ?: (0 to 0)
+            statsByCategory[category] = (current.first + items.count { it.isCompleted }) to
+                (current.second + items.size)
+        }
+
+    val sortedCategories = statsByCategory
+        .map { (category, counts) ->
             CategoryProgress(
                 category = category,
-                unlockedCount = items.count { it.id in unlockedPresetIds },
-                totalCount = items.size
+                unlockedCount = counts.first,
+                totalCount = counts.second
             )
         }
         // 关注过的分类永远排最前，然后是「有进展的」，
@@ -158,6 +213,16 @@ private fun buildHomeState(
                 .thenByDescending { it.totalCount }
                 .thenBy { it.category }
         )
+
+    // 用户在「设置 → 首页板块」里挑过的话，按他挑的顺序排在最前面；
+    // 没挑过就还是上面那套自动排序（首页取前五个）
+    val categories = if (chosenCategories.isEmpty()) {
+        sortedCategories
+    } else {
+        val byName = sortedCategories.associateBy { it.category }
+        chosenCategories.mapNotNull { byName[it] } +
+            sortedCategories.filterNot { it.category in chosenCategories }
+    }
 
     val presetById = presets.associateBy { it.id }
     val recent = completed
@@ -202,7 +267,8 @@ private fun buildHomeState(
         firstRecordDate = firstRecordDate,
         nickname = nickname,
         signature = signature,
-        avatarPath = avatarPath
+        avatarPath = avatarPath,
+        avatarPreset = avatarPreset
     )
 }
 

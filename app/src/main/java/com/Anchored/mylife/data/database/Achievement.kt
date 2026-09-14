@@ -14,6 +14,17 @@ data class Achievement(
     val isCompleted: Boolean = false,
     val iconEmoji: String,
     /**
+     * 这条成就属于哪个分类。
+     *
+     * 从图鉴带过来时跟着图鉴条目的分类走；自己手写的成就可以自己挑一个，
+     * 挑不到合适的还能自己新建一个（见「设置 → 首页板块 → 分类颜色 / 分类」）。
+     * 空字符串 = 没分类，首页的分类进度不计入它。
+     *
+     * 存的是**名字**而不是 id：分类本来就是用户自己起的名字，用名字当标识
+     * 最直接，也免得为了一个标签再维护一张表、再多一层外键。
+     */
+    val category: String = "",
+    /**
      * 这条成就对应图鉴里的哪一条（preset_achievements.id），自己手写的为 null。
      *
      * 图鉴里的「已达成」= 存在一条 presetId 相同、且 isCompleted 为 true 的成就。

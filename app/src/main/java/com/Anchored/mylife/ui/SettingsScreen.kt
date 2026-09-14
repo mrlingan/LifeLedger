@@ -35,8 +35,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,23 +57,34 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.data.backup.BackupSummary
+import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.data.settings.ThemeMode
 import com.Anchored.mylife.data.settings.AppSettings
 import com.Anchored.mylife.data.settings.FontScaleChoice
+import com.Anchored.mylife.data.settings.HomeSection
 import com.Anchored.mylife.data.settings.ListDensity
 import com.Anchored.mylife.data.settings.MotionChoice
 import androidx.annotation.StringRes
 import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.components.AppAvatar
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppDialog
+import com.Anchored.mylife.ui.components.AppDialogText
 import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppSegmentedControl
 import com.Anchored.mylife.ui.components.AppSettingRow
 import com.Anchored.mylife.ui.components.AppSwitch
+import com.Anchored.mylife.ui.components.AppSnackbarHost
 import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.components.LocalBottomBarClearance
+import com.Anchored.mylife.ui.components.liquidglass.GlassSurface
+import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassBackdrop
+import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassEnabled
+import com.Anchored.mylife.ui.components.liquidglass.rememberSelectionGlassStyle
+import com.Anchored.mylife.ui.demo.DemoDataSeeder
+import com.Anchored.mylife.ui.demo.DemoAccess
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
 import com.Anchored.mylife.ui.theme.Radius
@@ -80,6 +94,15 @@ import kotlin.math.roundToInt
 
 /** 规划中的条目统一标注，避免点了没反应（存资源 id，在使用处取文案） */
 private val SOON_LABEL = R.string.common_coming_soon
+
+/** 开发者选项为什么可见，标在分组标题上，方便自己确认命中的是哪一条 */
+@StringRes
+private fun DemoAccess.Reason.labelRes(): Int = when (this) {
+    DemoAccess.Reason.DEBUG_SIGNATURE -> R.string.settings_dev_reason_signature
+    DemoAccess.Reason.DEBUGGABLE -> R.string.settings_dev_reason_debuggable
+    DemoAccess.Reason.FORCED -> R.string.settings_dev_reason_forced
+    DemoAccess.Reason.HIDDEN -> R.string.settings_sec_dev_tools_plain
+}
 
 /**
  * 设置。
@@ -93,12 +116,22 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val demoState by viewModel.demoState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
     val backgroundPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri -> viewModel.setBackgroundImageUri(uri?.toString()) }
 
+    LaunchedEffect(demoState.message) {
+        val message = demoState.message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeDemoMessage()
+    }
+
     SettingsScreen(
         uiState = uiState,
+        demoState = demoState,
+        snackbarHostState = snackbarHostState,
         // 设置是底部导航的 tab，不需要返回箭头
         onBack = null,
         onOpenProfile = { navController.navigate("profile") },
@@ -106,7 +139,9 @@ fun SettingsRoute(
         onOpenAchievementSettings = { navController.navigate("achievement_settings") },
         onOpenReminder = { navController.navigate("reminder") },
         onOpenDataSecurity = { navController.navigate("data_security") },
+        onOpenHomeLayout = { navController.navigate(ROUTE_HOME_LAYOUT) },
         onThemeModeChange = viewModel::setThemeMode,
+        onLiquidGlassChange = viewModel::setLiquidGlass,
         onPickBackground = {
             backgroundPicker.launchExternal(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -121,7 +156,9 @@ fun SettingsRoute(
         onLanguageChange = viewModel::setLanguage,
         onListDensityChange = viewModel::setListDensity,
         onFontScaleChange = viewModel::setFontScale,
-        onMotionChange = viewModel::setMotion
+        onMotionChange = viewModel::setMotion,
+        onGenerateDemoData = viewModel::generateDemoData,
+        onClearAllData = viewModel::clearAllData
     )
 }
 
@@ -134,7 +171,9 @@ fun SettingsScreen(
     onOpenAchievementSettings: () -> Unit,
     onOpenReminder: () -> Unit,
     onOpenDataSecurity: () -> Unit,
+    onOpenHomeLayout: () -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onLiquidGlassChange: (Boolean) -> Unit,
     onPickBackground: () -> Unit,
     onRemoveBackground: () -> Unit,
     onBackgroundOpacityChange: (Float) -> Unit,
@@ -145,9 +184,19 @@ fun SettingsScreen(
     onLanguageChange: (LanguageChoice) -> Unit,
     onListDensityChange: (ListDensity) -> Unit,
     onFontScaleChange: (FontScaleChoice) -> Unit,
-    onMotionChange: (MotionChoice) -> Unit
+    onMotionChange: (MotionChoice) -> Unit,
+    /** 演示数据：只在可调试的包里出现，见下面的 demoDataAvailable */
+    demoState: DemoDataState = DemoDataState(),
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onGenerateDemoData: () -> Unit = {},
+    onClearAllData: () -> Unit = {}
 ) {
     val colors = AppTheme.colors
+    val context = LocalContext.current
+    // 正式包（自己 keystore 签的、又不可调试）里这一组根本不渲染，
+    // 不是渲染出来再禁用——少一个入口就少一次误触
+    val demoReason = remember(context) { DemoAccess.reason(context) }
+    val demoAvailable = demoReason != DemoAccess.Reason.HIDDEN
     var showAbout by remember { mutableStateOf(false) }
     var showLanguage by remember { mutableStateOf(false) }
     var showTheme by remember { mutableStateOf(false) }
@@ -155,9 +204,12 @@ fun SettingsScreen(
     var showPinRemove by remember { mutableStateOf(false) }
     var showDisplay by remember { mutableStateOf(false) }
     var showAnimation by remember { mutableStateOf(false) }
+    var showGenerateDemo by remember { mutableStateOf(false) }
+    var showClearData by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = AppTheme.pageColor,
+        snackbarHost = { AppSnackbarHost(hostState = snackbarHostState) },
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
         ),
@@ -178,6 +230,7 @@ fun SettingsScreen(
                 nickname = uiState.nickname,
                 signature = uiState.signature,
                 avatarPath = uiState.avatarPath,
+                avatarPreset = uiState.avatarPreset,
                 onClick = onOpenProfile
             )
 
@@ -192,11 +245,34 @@ fun SettingsScreen(
 
             SettingsSection(title = stringResource(R.string.settings_sec_look)) {
                 AppSettingRow(
+                    title = stringResource(R.string.settings_home_sections),
+                    subtitle = stringResource(R.string.settings_home_sections_desc),
+                    trailingText = stringResource(
+                        R.string.settings_home_sections_value,
+                        uiState.homeSections.size,
+                        HomeSection.entries.size
+                    ),
+                    showChevron = true,
+                    onClick = onOpenHomeLayout
+                )
+                AppDivider()
+                AppSettingRow(
                     title = stringResource(R.string.settings_theme),
                     subtitle = stringResource(R.string.settings_theme_desc),
                     trailingText = stringResource(uiState.themeMode.labelRes()),
                     showChevron = true,
                     onClick = { showTheme = true }
+                )
+                AppDivider()
+                AppSettingRow(
+                    title = stringResource(R.string.settings_liquid_glass),
+                    subtitle = stringResource(R.string.settings_liquid_glass_desc),
+                    trailing = {
+                        AppSwitch(
+                            checked = uiState.liquidGlass,
+                            onCheckedChange = onLiquidGlassChange
+                        )
+                    }
                 )
                 AppDivider()
                 AppSettingRow(
@@ -320,6 +396,67 @@ fun SettingsScreen(
                     onClick = { showAbout = true }
                 )
             }
+
+            // 演示数据：给截图和试用凑一批数据，正式包里没有这一组
+            if (demoAvailable) {
+                SettingsSection(
+                    title = stringResource(
+                        R.string.settings_sec_dev_tools,
+                        stringResource(demoReason.labelRes())
+                    )
+                ) {
+                    AppSettingRow(
+                        title = stringResource(R.string.settings_demo_generate),
+                        subtitle = stringResource(R.string.settings_demo_generate_desc),
+                        enabled = !demoState.busy,
+                        showChevron = true,
+                        onClick = { showGenerateDemo = true }
+                    )
+                    AppDivider()
+                    AppSettingRow(
+                        title = stringResource(R.string.settings_demo_clear),
+                        subtitle = stringResource(R.string.settings_demo_clear_desc),
+                        destructive = true,
+                        enabled = !demoState.busy,
+                        showChevron = true,
+                        onClick = { showClearData = true }
+                    )
+                }
+            }
+        }
+    }
+
+    if (showGenerateDemo) {
+        AppDialog(
+            title = stringResource(R.string.settings_demo_generate_title),
+            onDismissRequest = { showGenerateDemo = false },
+            onConfirm = {
+                showGenerateDemo = false
+                onGenerateDemoData()
+            },
+            confirmText = stringResource(R.string.settings_demo_generate)
+        ) {
+            AppDialogText(
+                stringResource(
+                    R.string.settings_demo_generate_body,
+                    DemoDataSeeder.PREVIEW_COUNT
+                )
+            )
+        }
+    }
+
+    if (showClearData) {
+        AppDialog(
+            title = stringResource(R.string.settings_demo_clear_title),
+            onDismissRequest = { showClearData = false },
+            onConfirm = {
+                showClearData = false
+                onClearAllData()
+            },
+            confirmText = stringResource(R.string.settings_demo_clear),
+            destructive = true
+        ) {
+            AppDialogText(stringResource(R.string.settings_demo_clear_body))
         }
     }
 
@@ -425,13 +562,53 @@ private fun LanguageOptionRow(
     onClick: () -> Unit
 ) {
     val colors = AppTheme.colors
+    val shape = RoundedCornerShape(Radius.sm)
+    val glassEnabled = LocalLiquidGlassEnabled.current
+
+    // 选中的那个语言是一小块任务色玻璃，和分段控件里的"选中"是同一种材质
+    if (glassEnabled && selected) {
+        GlassSurface(
+            backdrop = LocalLiquidGlassBackdrop.current,
+            style = rememberSelectionGlassStyle(),
+            shape = shape,
+            cornerRadius = Radius.sm,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = Spacing.sm,
+                        vertical = Spacing.md
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    style = AppTheme.type.bodyLarge,
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = null,
+                    tint = colors.accentStrong,
+                    modifier = Modifier.size(Sizes.iconMd)
+                )
+            }
+        }
+        return
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Radius.sm))
+            .clip(shape)
             .clickable(onClick = onClick)
-            .padding(vertical = Spacing.md),
+            // 左右也给一点：选中那一行是玻璃块，文字要落在同一条竖线上
+            .padding(horizontal = Spacing.sm, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -602,7 +779,7 @@ private fun BackgroundPreview(uri: String?, opacity: Float) {
     }
 }
 
-/** 一个分组：小标题 + 一张容器卡片 */
+/** 一个分组：小标题 + 一张容器卡片。卡片是液态玻璃，和首页板块同一种材质 */
 @Composable
 private fun SettingsSection(
     title: String,
@@ -619,7 +796,11 @@ private fun SettingsSection(
         )
     )
 
-    AppCard(contentPadding = PaddingValues(0.dp), content = content)
+    AppCard(
+        tone = AppCardTone.Glass,
+        contentPadding = PaddingValues(0.dp),
+        content = content
+    )
 }
 
 @Composable
@@ -721,6 +902,7 @@ private fun ProfileHeader(
     nickname: String,
     signature: String,
     avatarPath: String?,
+    avatarPreset: AvatarPreset?,
     onClick: () -> Unit
 ) {
     val colors = AppTheme.colors
@@ -729,12 +911,14 @@ private fun ProfileHeader(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = Spacing.xl),
+        tone = AppCardTone.Glass,
         onClick = onClick
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AppAvatar(
                 name = nickname,
                 path = avatarPath,
+                preset = avatarPreset,
                 size = Sizes.avatarLg
             )
             Spacer(modifier = Modifier.width(Spacing.lg))
@@ -917,7 +1101,9 @@ private fun SettingsPreview() {
             onOpenAchievementSettings = {},
             onOpenReminder = {},
             onOpenDataSecurity = {},
+            onOpenHomeLayout = {},
             onThemeModeChange = {},
+            onLiquidGlassChange = {},
             onPickBackground = {},
             onRemoveBackground = {},
             onBackgroundOpacityChange = {},

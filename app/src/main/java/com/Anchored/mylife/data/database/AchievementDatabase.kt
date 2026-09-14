@@ -17,7 +17,7 @@ import com.Anchored.mylife.data.dao.PresetAchievementDao
         Media::class,
         PresetAchievement::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(DateConverters::class)
@@ -70,6 +70,20 @@ abstract class AchievementDatabase : RoomDatabase() {
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `achievements` ADD COLUMN `presetId` INTEGER")
+            }
+        }
+
+        /**
+         * v4 -> v5：成就表新增 category，用户自己写的成就也能挂一个分类。
+         *
+         * 默认空串（= 没分类），老数据一条都不会被动到；图鉴带过来的那些在
+         * 创建时就写好了分类，首页的分类进度因此能把自建成就也算进去。
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `achievements` ADD COLUMN `category` TEXT NOT NULL DEFAULT ''"
+                )
             }
         }
     }

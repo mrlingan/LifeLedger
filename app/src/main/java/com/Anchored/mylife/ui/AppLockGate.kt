@@ -14,11 +14,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,12 +29,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -44,7 +42,8 @@ import androidx.lifecycle.withStateAtLeast
 import com.Anchored.mylife.data.crypto.AppPin
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
-import com.Anchored.mylife.ui.components.AppTextField
+import com.Anchored.mylife.ui.components.AppPinInput
+import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassBackdrop
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
 import com.Anchored.mylife.ui.theme.Spacing
@@ -178,7 +177,6 @@ private fun LockScreen(
     val promptSubtitle = stringResource(R.string.lock_prompt_subtitle)
     val failedText = stringResource(R.string.lock_failed)
     val wrongPinText = stringResource(R.string.lock_pin_wrong)
-    val focusRequester = remember { FocusRequester() }
     val promptInfo = remember(promptTitle, promptSubtitle) {
         BiometricPrompt.PromptInfo.Builder()
             .setTitle(promptTitle)
@@ -231,15 +229,6 @@ private fun LockScreen(
         }
     }
 
-    // 密码框自动聚焦，省得用户再点一下。
-    // 锁屏可能是在 ON_STOP 里挂上的，那时候窗口还没有焦点，所以要等回到前台
-    LaunchedEffect(pinSet) {
-        if (!pinSet) return@LaunchedEffect
-        lifecycleOwner.lifecycle.withStateAtLeast(Lifecycle.State.RESUMED) {
-            runCatching { focusRequester.requestFocus() }
-        }
-    }
-
     // 冷却倒计时
     LaunchedEffect(cooldownUntil) {
         while (true) {
@@ -289,71 +278,70 @@ private fun LockScreen(
             .background(AppTheme.colors.background),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = Spacing.xxl),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.lock_locked),
-                style = AppTheme.type.h2,
-                color = AppTheme.colors.textPrimary
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.sm))
-
-            Text(
-                text = hint,
-                style = AppTheme.type.body,
-                color = AppTheme.colors.textSecondary,
-                textAlign = TextAlign.Center
-            )
-
-            if (pinSet) {
-                Spacer(modifier = Modifier.height(Spacing.xl))
-
-                AppTextField(
-                    value = pin,
-                    onValueChange = { input ->
-                        pin = input.filter { it.isDigit() }.take(AppPin.MAX_LENGTH)
-                        errorMessage = null
-                    },
-                    label = stringResource(R.string.lock_pin_field),
-                    singleLine = true,
-                    password = true,
-                    isError = errorMessage != null,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.NumberPassword,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
-                    focusRequester = focusRequester,
-                    enabled = !checking && cooldownLeft == 0,
-                    modifier = Modifier.fillMaxWidth()
+        // 锁屏自己是整屏不透明的，背后那层采样源（背景图）在这里根本不出现，
+        // 键盘上的玻璃就不该去采它——否则每个键都会变成一扇看见壁纸的小窗
+        CompositionLocalProvider(LocalLiquidGlassBackdrop provides null) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = Spacing.xxl)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.lock_locked),
+                    style = AppTheme.type.h2,
+                    color = AppTheme.colors.textPrimary
                 )
 
-                Spacer(modifier = Modifier.height(Spacing.lg))
+                Spacer(modifier = Modifier.height(Spacing.sm))
 
-                AppButton(
-                    text = stringResource(R.string.lock_action),
-                    onClick = { submit() },
-                    enabled = !checking && cooldownLeft == 0 && pin.length >= AppPin.MIN_LENGTH
+                Text(
+                    text = hint,
+                    style = AppTheme.type.body,
+                    color = AppTheme.colors.textSecondary,
+                    textAlign = TextAlign.Center
                 )
 
-                if (biometricUnlock) {
-                    Spacer(modifier = Modifier.height(Spacing.sm))
+                if (pinSet) {
+                    Spacer(modifier = Modifier.height(Spacing.xl))
+
+                    AppPinInput(
+                        value = pin,
+                        onValueChange = { input ->
+                            pin = input
+                            errorMessage = null
+                        },
+                        isError = errorMessage != null,
+                        enabled = !checking && cooldownLeft == 0,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.lg))
+
                     AppButton(
-                        text = stringResource(R.string.lock_pin_biometric),
-                        onClick = { prompt?.authenticate(promptInfo) },
-                        variant = AppButtonVariant.Text
+                        text = stringResource(R.string.lock_action),
+                        onClick = { submit() },
+                        enabled = !checking &&
+                            cooldownLeft == 0 &&
+                            pin.length >= AppPin.MIN_LENGTH
+                    )
+
+                    if (biometricUnlock) {
+                        Spacer(modifier = Modifier.height(Spacing.sm))
+                        AppButton(
+                            text = stringResource(R.string.lock_pin_biometric),
+                            onClick = { prompt?.authenticate(promptInfo) },
+                            variant = AppButtonVariant.Text
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(Spacing.xl))
+
+                    AppButton(
+                        text = stringResource(R.string.lock_action),
+                        onClick = { prompt?.authenticate(promptInfo) }
                     )
                 }
-            } else {
-                Spacer(modifier = Modifier.height(Spacing.xl))
-
-                AppButton(
-                    text = stringResource(R.string.lock_action),
-                    onClick = { prompt?.authenticate(promptInfo) }
-                )
             }
         }
     }

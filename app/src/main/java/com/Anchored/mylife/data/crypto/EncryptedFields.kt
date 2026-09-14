@@ -21,13 +21,15 @@ fun Achievement.encrypted(enabled: Boolean): Achievement =
     } else {
         copy(
             title = DataCipher.encrypt(title),
-            description = DataCipher.encrypt(description)
+            description = DataCipher.encrypt(description),
+            category = DataCipher.encrypt(category)
         )
     }
 
 fun Achievement.decrypted(): Achievement = copy(
     title = DataCipher.decrypt(title),
-    description = DataCipher.decrypt(description)
+    description = DataCipher.decrypt(description),
+    category = DataCipher.decrypt(category)
 )
 
 fun Note.encrypted(enabled: Boolean): Note =
@@ -37,14 +39,17 @@ fun Note.decrypted(): Note = copy(content = DataCipher.decrypt(content))
 
 /** 迁移判断：这一行里还有没有明文（或旧格式）需要改写 */
 fun Achievement.needsReencoding(): Boolean =
-    DataCipher.needsReencoding(title) || DataCipher.needsReencoding(description)
+    DataCipher.needsReencoding(title) ||
+        DataCipher.needsReencoding(description) ||
+        DataCipher.needsReencoding(category)
 
 fun Note.needsReencoding(): Boolean = DataCipher.needsReencoding(content)
 
 /** 迁移写入：把落盘值统一成当前格式 */
 fun Achievement.reencoded(): Achievement = copy(
     title = DataCipher.reencode(title),
-    description = DataCipher.reencode(description)
+    description = DataCipher.reencode(description),
+    category = DataCipher.reencode(category)
 )
 
 fun Note.reencoded(): Note = copy(content = DataCipher.reencode(content))

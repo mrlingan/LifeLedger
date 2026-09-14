@@ -107,8 +107,6 @@ data class GlassColors(
     /** 描边：上缘提亮、下缘压暗，玻璃才有厚度转折 */
     val rimTop: Color,
     val rimBottom: Color,
-    /** 设备不支持采样时铺的磨砂底色 */
-    val frosted: Color,
     /** 选中态玻璃滴的底色，比整条栏更亮一点才浮得起来 */
     val droplet: Color,
     val dropletSheen: Color,
@@ -199,7 +197,6 @@ internal val LightAppColors = AppColors(
         sheen = Color(0x59FFFFFF),
         rimTop = Color(0xB3FFFFFF),
         rimBottom = Color(0x14000000),
-        frosted = Color(0x8CFFFFFF),
         droplet = Color(0x6BFFFFFF),
         dropletSheen = Color(0x73FFFFFF),
         dropletRimTop = Color(0xCCFFFFFF),
@@ -237,10 +234,28 @@ internal val DarkAppColors = AppColors(
         sheen = Color(0x1FFFFFFF),
         rimTop = Color(0x3DFFFFFF),
         rimBottom = Color(0x0AFFFFFF),
-        frosted = Color(0xD92C2C2E),
         droplet = Color(0x3DFFFFFF),
         dropletSheen = Color(0x33FFFFFF),
         dropletRimTop = Color(0x66FFFFFF),
         dropletRimBottom = Color(0x14FFFFFF)
     )
+)
+
+/**
+ * 首页「分类进度」里圆环可以挑的颜色。
+ *
+ * 固定色值，不跟明暗主题走：用户挑的是"这个分类是蓝的"，不是"它在浅色下是蓝的"。
+ * 这几个色在两种主题下都还看得清——深色底上不发闷，浅色底上不发飘。
+ */
+internal val CategoryColorChoices: List<Color> = listOf(
+    Color(0xFF007AFF), // 蓝
+    Color(0xFF32ADE6), // 青
+    Color(0xFF34C759), // 绿
+    Color(0xFFFFCC00), // 黄
+    Color(0xFFFF9500), // 橙
+    Color(0xFFFF3B30), // 红
+    Color(0xFFFF2D55), // 粉
+    Color(0xFFAF52DE), // 紫
+    Color(0xFFA2845E), // 棕
+    Color(0xFF8E8E93)  // 灰
 )

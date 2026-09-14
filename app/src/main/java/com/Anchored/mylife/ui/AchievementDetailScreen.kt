@@ -61,6 +61,7 @@ import com.Anchored.mylife.data.database.Achievement
 import com.Anchored.mylife.data.database.Media
 import com.Anchored.mylife.data.database.Note
 import com.Anchored.mylife.ui.components.AchievementStatus
+import com.Anchored.mylife.ui.components.AchievementIconView
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppCard
@@ -70,6 +71,7 @@ import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.components.AppTextField
 import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.components.AppVerticalDivider
+import com.Anchored.mylife.ui.components.CategoryPickerField
 import com.Anchored.mylife.ui.components.EmptyState
 import com.Anchored.mylife.ui.components.SectionHeader
 import com.Anchored.mylife.ui.components.StatTile
@@ -106,6 +108,7 @@ fun AchievementDetailRoute(
         factory = AchievementDetailViewModel.factory(context, achievementId)
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
 
     var pickMode by remember { mutableStateOf<MediaPickMode?>(null) }
     var composerMedia by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -132,12 +135,14 @@ fun AchievementDetailRoute(
     AchievementDetailScreen(
         uiState = uiState,
         composerMedia = composerMedia,
+        categories = categories,
         onBack = { navController.popBackStack() },
         onMarkCompleted = { date -> viewModel.markCompleted(date) },
         onMarkUncompleted = viewModel::markUncompleted,
-        onUpdateInfo = { title, description, emoji ->
-            viewModel.updateInfo(title, description, emoji)
+        onUpdateInfo = { title, description, emoji, category ->
+            viewModel.updateInfo(title, description, emoji, category)
         },
+        onCreateCategory = viewModel::addCategory,
         onDelete = { viewModel.delete { navController.popBackStack() } },
         onSaveNote = { noteId, content, attachments ->
             if (noteId == null) {
@@ -181,10 +186,12 @@ private sealed interface NoteEditorTarget {
 fun AchievementDetailScreen(
     uiState: AchievementDetailUiState,
     composerMedia: List<Uri>,
+    categories: List<String>,
     onBack: () -> Unit,
     onMarkCompleted: (Long) -> Unit,
     onMarkUncompleted: () -> Unit,
-    onUpdateInfo: (String, String, String) -> Unit,
+    onUpdateInfo: (String, String, String, String) -> Unit,
+    onCreateCategory: (String) -> Unit,
     onDelete: () -> Unit,
     onSaveNote: (Long?, String, List<Uri>) -> Unit,
     onDeleteNote: (Long) -> Unit,
@@ -196,6 +203,7 @@ fun AchievementDetailScreen(
 ) {
     val colors = AppTheme.colors
     val achievement = uiState.achievement
+    val presetTexts = rememberPresetTexts()
     val completionFeedback = rememberCompletionFeedback()
 
     var menuExpanded by remember { mutableStateOf(false) }
@@ -416,10 +424,13 @@ fun AchievementDetailScreen(
     if (achievement != null && showEditDialog) {
         EditAchievementDialog(
             achievement = achievement,
+            categories = categories,
+            labelOfCategory = presetTexts::categoryOf,
+            onCreateCategory = onCreateCategory,
             onDismiss = { showEditDialog = false },
-            onConfirm = { title, description, emoji ->
+            onConfirm = { title, description, emoji, category ->
                 showEditDialog = false
-                onUpdateInfo(title, description, emoji)
+                onUpdateInfo(title, description, emoji, category)
             }
         )
     }
@@ -505,9 +516,11 @@ private fun DetailHero(
                 .border(Sizes.hairline, colors.border, shape),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = achievement.iconEmoji,
-                style = AppTheme.type.display
+            AchievementIconView(
+                icon = achievement.iconEmoji,
+                size = Sizes.heroIcon,
+                textStyle = AppTheme.type.display,
+                shape = shape
             )
         }
 
@@ -662,23 +675,40 @@ private fun NoteCardItem(
 @Composable
 private fun EditAchievementDialog(
     achievement: Achievement,
+    categories: List<String>,
+    labelOfCategory: (String) -> String,
+    onCreateCategory: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String) -> Unit
+    onConfirm: (String, String, String, String) -> Unit
 ) {
     var title by remember { mutableStateOf(achievement.title) }
     var description by remember { mutableStateOf(achievement.description) }
     var iconEmoji by remember { mutableStateOf(achievement.iconEmoji) }
+    var category by remember { mutableStateOf(achievement.category) }
 
     AppDialog(
         title = stringResource(R.string.detail_menu_edit),
         onDismissRequest = onDismiss,
-        onConfirm = { onConfirm(title, description, iconEmoji) },
+        onConfirm = { onConfirm(title, description, iconEmoji, category) },
         confirmText = stringResource(R.string.common_save),
         content = {
             Column {
                 EmojiPickerRow(
                     selected = iconEmoji,
                     onSelect = { iconEmoji = it }
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                CategoryPickerField(
+                    categories = categories,
+                    selected = category,
+                    labelOf = labelOfCategory,
+                    onSelect = { category = it },
+                    onCreate = { name ->
+                        onCreateCategory(name)
+                        category = name
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(Spacing.lg))
@@ -839,10 +869,12 @@ private fun AchievementDetailPreview() {
                 isLoaded = true
             ),
             composerMedia = emptyList(),
+            categories = emptyList(),
             onBack = {},
             onMarkCompleted = {},
             onMarkUncompleted = {},
-            onUpdateInfo = { _, _, _ -> },
+            onUpdateInfo = { _, _, _, _ -> },
+            onCreateCategory = {},
             onDelete = {},
             onSaveNote = { _, _, _ -> },
             onDeleteNote = {},
@@ -866,10 +898,12 @@ private fun AchievementDetailDarkPreview() {
                 isLoaded = true
             ),
             composerMedia = emptyList(),
+            categories = emptyList(),
             onBack = {},
             onMarkCompleted = {},
             onMarkUncompleted = {},
-            onUpdateInfo = { _, _, _ -> },
+            onUpdateInfo = { _, _, _, _ -> },
+            onCreateCategory = {},
             onDelete = {},
             onSaveNote = { _, _, _ -> },
             onDeleteNote = {},

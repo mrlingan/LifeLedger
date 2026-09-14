@@ -23,6 +23,8 @@ local.properties
 *.aab
 *.ap_
 /app/release
+# 手工拷出来分发用的调试包（含 AGP 的 output-metadata.json）
+/app/debug
 
 # 签名文件：一旦提交就相当于把密钥公开了
 *.jks

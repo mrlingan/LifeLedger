@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
@@ -87,10 +88,14 @@ data class LiquidGlassStyle(
  *
  * [modifier] 必须给出尺寸（例如 `fillMaxWidth().height(...)`）：玻璃本体是按
  * 父容器尺寸铺的，自己不定尺寸就会量成 0。
+ *
+ * [backdrop] 传 null 表示当前不启用液态玻璃（设置里关掉了，或者跑在预览里）：
+ * 这时不采样任何画面，只铺一层 [LiquidGlassStyle.frosted] 磨砂，
+ * 高光与描边照常——和 API 31 以下设备的观感一致。
  */
 @Composable
 fun GlassSurface(
-    backdrop: LiquidGlassBackdrop,
+    backdrop: LiquidGlassBackdrop?,
     style: LiquidGlassStyle,
     shape: Shape,
     cornerRadius: Dp,
@@ -103,15 +108,26 @@ fun GlassSurface(
     val pipeline = rememberLiquidGlassPipeline()
     var originInRoot by remember { mutableStateOf(Offset.Zero) }
 
+    // 采样源为 null（对话框、锁屏这类采不到背后画面的地方）时玻璃铺的是
+    // [LiquidGlassStyle.frosted] 那层磨砂。tint 的语义是"叠在**背后画面**上的颜色"，
+    // 这时候再按它去混，等于把 frosted 自己冲淡一遍 —— 锁屏上的键盘键会淡到几乎
+    // 看不见。所以把 tint 换成 frosted 本身：mix 一次等于没混，磨砂底原样呈现，
+    // 高光与描边照旧。有采样源时什么都不变。
+    val bodyStyle = if (backdrop == null) style.copy(tint = style.frosted) else style
+
     Box(
-        modifier = modifier.onGloballyPositioned { originInRoot = it.positionInRoot() }
+        modifier = modifier.onGloballyPositioned { originInRoot = it.positionInRoot() },
+        // 玻璃是个容器：内容比它小的时候就居中放。Box 默认把子项量成"最小宽度 0"，
+        // 也就是内容自己有多宽就多宽，再按自己的 contentAlignment 摆 —— 不写这一行，
+        // 固定宽度的玻璃按钮里的文字会贴在左边，看起来就像"没居中"。
+        contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .glassBody(
                     backdrop = backdrop,
-                    style = style,
+                    style = bodyStyle,
                     shape = shape,
                     radiusPx = radiusPx,
                     densityScale = densityScale,
@@ -120,8 +136,26 @@ fun GlassSurface(
                 )
         )
 
+        // 上缘高光画在内容**之下**：它是玻璃表面的反光，不是盖在字上的一层白雾。
+        // 画在上面会把按钮标签、导航栏文字的上半截冲淡，字看着就像没对齐。
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawWithCache {
+                    val sheen = Brush.verticalGradient(
+                        0f to style.sheen,
+                        0.45f to Color.Transparent,
+                        1f to Color.Transparent
+                    )
+                    onDrawBehind {
+                        drawRoundRect(brush = sheen, cornerRadius = CornerRadius(radiusPx))
+                    }
+                }
+        )
+
         content()
 
+        // 描边压在内容之上：玻璃的边缘在内容外面，不会被文字盖住
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -146,13 +180,7 @@ fun GlassSurface(
                         )
                     }
                     val rim = Brush.verticalGradient(listOf(style.rimTop, style.rimBottom))
-                    val sheen = Brush.verticalGradient(
-                        0f to style.sheen,
-                        0.45f to Color.Transparent,
-                        1f to Color.Transparent
-                    )
                     onDrawBehind {
-                        drawRoundRect(brush = sheen, cornerRadius = CornerRadius(radiusPx))
                         drawPath(path = outline, brush = rim, style = Stroke(width = stroke))
                     }
                 }
@@ -168,7 +196,7 @@ fun GlassSurface(
  * 就是玻璃这一块位置背后真正的像素。多出来的部分由 [shape] 裁掉。
  */
 private fun Modifier.glassBody(
-    backdrop: LiquidGlassBackdrop,
+    backdrop: LiquidGlassBackdrop?,
     style: LiquidGlassStyle,
     shape: Shape,
     radiusPx: Float,
@@ -190,9 +218,9 @@ private fun Modifier.glassBody(
         )
     }
     .drawWithCache {
-        val backdropLayer = backdrop.layer
-        val offsetX = backdrop.originInRoot.x - originInRoot.x
-        val offsetY = backdrop.originInRoot.y - originInRoot.y
+        val backdropLayer = backdrop?.layer
+        val offsetX = (backdrop?.originInRoot?.x ?: 0f) - originInRoot.x
+        val offsetY = (backdrop?.originInRoot?.y ?: 0f) - originInRoot.y
         val fallbackRadius = CornerRadius(radiusPx)
         onDrawBehind {
             if (backdropLayer != null) {
@@ -200,7 +228,7 @@ private fun Modifier.glassBody(
                     drawLayer(backdropLayer)
                 }
             } else {
-                // 低版本没有 RenderEffect：不采样，只铺一层半透明磨砂
+                // 没开玻璃（或低版本没有 RenderEffect）：不采样，只铺一层磨砂
                 drawRoundRect(color = style.frosted, cornerRadius = fallbackRadius)
             }
         }
@@ -209,8 +237,8 @@ private fun Modifier.glassBody(
 /**
  * 着色器 + 渲染管线的持有者。
  *
- * `RenderEffect` 只建一次并常驻：uniform 是挂在同一个 `RuntimeShader` 上的，
- * 每帧改 uniform 就够了，不需要每帧重新分配对象。
+ * `RenderEffect` 按 uniform 的取值缓存：同一组 uniform 反复画就复用同一个对象，
+ * 取值一变就重建一份（原因见 [effect]）。
  */
 internal class LiquidGlassPipeline private constructor(
     private val shader: RuntimeShader?,
@@ -220,6 +248,8 @@ internal class LiquidGlassPipeline private constructor(
     val enabled: Boolean get() = shader != null || blurSigma > 0.01f
 
     private var effect: ComposeRenderEffect? = null
+    /** [effect] 是按哪一组 uniform 建出来的，null 表示还没建 */
+    private var effectUniforms: Uniforms? = null
 
     fun effect(
         widthPx: Float,
@@ -230,7 +260,21 @@ internal class LiquidGlassPipeline private constructor(
     ): ComposeRenderEffect? {
         if (!enabled) return null
         shader?.let { bindUniforms(it, widthPx, heightPx, radiusPx, densityScale, style) }
-        if (effect == null) effect = createEffect()
+
+        // `RenderEffect` 在创建的那一刻就把 RuntimeShader 当时的 uniform 固化进了
+        // 它内部的 GPU 程序，之后再调用 setFloatUniform 都不会影响它；而 Compose
+        // 只在 renderEffect **对象换了** 的时候才重新 setRenderEffect。
+        //
+        // 两者叠在一起就是：只要 uniform 变了却不重建 effect，玻璃会一直用第一次
+        // 创建时的那套颜色。最典型的就是切浅色 / 深色 —— tint / rim / sheen 整组
+        // 都换掉了，玻璃却还是原来的明暗，只有杀掉进程重启（管线重新建一遍）才
+        // 恢复正常。所以这里按 uniform 的取值缓存：取值一变就重建，交给
+        // RenderNode 重新设置一次。
+        val uniforms = Uniforms(widthPx, heightPx, radiusPx, densityScale, style)
+        if (effect == null || uniforms != effectUniforms) {
+            effect = createEffect()
+            effectUniforms = uniforms
+        }
         return effect
     }
 
@@ -272,6 +316,20 @@ internal class LiquidGlassPipeline private constructor(
         }
     }
 }
+
+/**
+ * 一份 [LiquidGlassPipeline.effect] 的缓存键。
+ *
+ * 列的必须是**全部会写进着色器的 uniform**：尺寸、圆角、密度换算和 [LiquidGlassStyle]
+ * 本身。少列一个，那个值就会永远停在第一次绘制时的样子。
+ */
+private data class Uniforms(
+    val widthPx: Float,
+    val heightPx: Float,
+    val radiusPx: Float,
+    val densityScale: Float,
+    val style: LiquidGlassStyle
+)
 
 @Composable
 private fun rememberLiquidGlassPipeline(): LiquidGlassPipeline {

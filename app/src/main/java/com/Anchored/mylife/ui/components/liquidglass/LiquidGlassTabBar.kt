@@ -73,6 +73,7 @@ import kotlin.math.roundToInt
  * 图标与文字画在折射之上，保持清晰；玻璃只负责它下面那一层。
  *
  * @param backdrop 采样源，来自 [rememberLiquidGlassBackdrop]，由页面根部录制
+ *   传 null 表示不启用液态玻璃：整条栏退回纯色磨砂，选中态仍是一颗磨砂的滴
  * @param centerAction 中间的主操作。它不是 tab：不参与选中态，点击只执行动作
  */
 @Composable
@@ -80,7 +81,7 @@ fun LiquidGlassTabBar(
     items: List<AppBottomBarItem>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    backdrop: LiquidGlassBackdrop,
+    backdrop: LiquidGlassBackdrop?,
     modifier: Modifier = Modifier,
     centerAction: AppBottomBarAction? = null
 ) {
@@ -192,7 +193,7 @@ fun LiquidGlassTabBar(
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInput(items.size, tabWidthPx) {
-                                detectDropletDrag(
+                                detectHorizontalDrag(
                                     onStart = { x ->
                                         dragCenterPx.floatValue = x
                                         dragging = true
@@ -267,7 +268,7 @@ fun LiquidGlassTabBar(
  */
 @Composable
 private fun Droplet(
-    backdrop: LiquidGlassBackdrop,
+    backdrop: LiquidGlassBackdrop?,
     style: LiquidGlassStyle,
     leftEdge: Animatable<Float, *>,
     rightEdge: Animatable<Float, *>,
@@ -402,46 +403,16 @@ private fun CenterActionSlot(
     }
 }
 
-/** 按住玻璃滴左右拖动；位移超过阈值才算拖动，普通点击仍然交给 tab 自己处理 */
-private suspend fun PointerInputScope.detectDropletDrag(
-    onStart: (Float) -> Unit,
-    onDrag: (Float) -> Unit,
-    onEnd: () -> Unit,
-    onCancel: () -> Unit
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        val slop = viewConfiguration.touchSlop
-        var travelledX = 0f
-        var travelledY = 0f
-        var started = false
-        while (true) {
-            val event = awaitPointerEvent()
-            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-            if (!change.pressed) break
-            val dx = change.position.x - change.previousPosition.x
-            val dy = change.position.y - change.previousPosition.y
-            if (!started) {
-                travelledX += dx
-                travelledY += dy
-                if (abs(travelledX) > slop && abs(travelledX) > abs(travelledY)) {
-                    started = true
-                    onStart(change.position.x)
-                }
-            } else if (dx != 0f) {
-                onDrag(dx)
-                change.consume()
-            }
-        }
-        if (started) onEnd() else onCancel()
-    }
-}
-
-/** 玻璃栏的玻璃参数：边缘一圈折射 + 轻微色散 */
+/**
+ * 玻璃栏的玻璃参数：边缘一圈折射 + 轻微色散。
+ *
+ * `frosted` 是「没开玻璃」时铺的底色，见下面各字段的注释。
+ */
 @Composable
 private fun rememberBarGlassStyle(): LiquidGlassStyle {
-    val glass = AppTheme.colors.glass
-    return remember(glass) {
+    val colors = AppTheme.colors
+    val glass = colors.glass
+    return remember(glass, colors.surface) {
         LiquidGlassStyle(
             refractionHeight = 18.dp,
             refractionAmount = -26.dp,
@@ -451,16 +422,19 @@ private fun rememberBarGlassStyle(): LiquidGlassStyle {
             sheen = glass.sheen,
             rimTop = glass.rimTop,
             rimBottom = glass.rimBottom,
-            frosted = glass.frosted
+            // 没有玻璃可采样时的兜底填充（关掉开关、或设备不支持）：
+            // 给实心表面色，半透明的磨砂底会让内容从栏里透出来，像没画完
+            frosted = colors.surface
         )
     }
 }
 
-/** 玻璃滴更「厚」一点：折射带更窄、位移更小，色散更明显 */
+/** 玻璃滴更「厚」一点：折射带更窄、位移更小，色散更明显；兜底填充比栏深一档 */
 @Composable
 private fun rememberDropletGlassStyle(): LiquidGlassStyle {
-    val glass = AppTheme.colors.glass
-    return remember(glass) {
+    val colors = AppTheme.colors
+    val glass = colors.glass
+    return remember(glass, colors.surfaceSunken) {
         LiquidGlassStyle(
             refractionHeight = 12.dp,
             refractionAmount = -14.dp,
@@ -470,7 +444,7 @@ private fun rememberDropletGlassStyle(): LiquidGlassStyle {
             sheen = glass.dropletSheen,
             rimTop = glass.dropletRimTop,
             rimBottom = glass.dropletRimBottom,
-            frosted = glass.droplet
+            frosted = colors.surfaceSunken
         )
     }
 }

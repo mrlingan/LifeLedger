@@ -15,7 +15,9 @@ import com.Anchored.mylife.data.media.MotionPhotoExtractor
 import com.Anchored.mylife.data.repository.AchievementRepository
 import com.Anchored.mylife.data.repository.MediaRepository
 import com.Anchored.mylife.data.repository.NoteRepository
+import com.Anchored.mylife.data.repository.PresetAchievementRepository
 import com.Anchored.mylife.data.repository.RepositoryProvider
+import com.Anchored.mylife.data.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +59,8 @@ class AchievementDetailViewModel(
     private val achievementRepository: AchievementRepository,
     private val noteRepository: NoteRepository,
     private val mediaRepository: MediaRepository,
+    private val settings: AppSettings,
+    private val presetRepository: PresetAchievementRepository,
     private val achievementId: Long
 ) : ViewModel() {
 
@@ -92,13 +96,29 @@ class AchievementDetailViewModel(
         }
     }
 
-    fun updateInfo(title: String, description: String, iconEmoji: String) {
+    /** 可选的分类：图鉴内置 + 用户新建 + 自己成就上用过的 */
+    val categories: StateFlow<List<String>> = categoryDirectoryFlow(
+        settings = settings,
+        presetRepository = presetRepository,
+        achievementRepository = achievementRepository
+    )
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun addCategory(name: String) = settings.addCustomCategory(name)
+
+    fun updateInfo(
+        title: String,
+        description: String,
+        iconEmoji: String,
+        category: String
+    ) {
         viewModelScope.launch {
             achievementRepository.updateAchievementInfo(
                 achievementId = achievementId,
                 title = title,
                 description = description,
-                iconEmoji = iconEmoji
+                iconEmoji = iconEmoji,
+                category = category
             )
         }
     }
@@ -194,6 +214,8 @@ class AchievementDetailViewModel(
                         achievementRepository = repositories.achievementRepository,
                         noteRepository = repositories.noteRepository,
                         mediaRepository = repositories.mediaRepository,
+                        settings = repositories.settings,
+                        presetRepository = repositories.presetAchievementRepository,
                         achievementId = achievementId
                     )
                 }

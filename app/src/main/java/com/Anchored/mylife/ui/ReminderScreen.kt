@@ -40,6 +40,7 @@ import androidx.navigation.NavHostController
 import com.Anchored.mylife.R
 import com.Anchored.mylife.data.settings.ReminderFrequency
 import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppSegmentedControl
 import com.Anchored.mylife.ui.components.AppSettingRow
@@ -137,7 +138,10 @@ fun ReminderScreen(
         ) {
             Spacer(modifier = Modifier.height(Spacing.lg))
 
-            AppCard(contentPadding = PaddingValues(horizontal = Spacing.lg)) {
+            AppCard(
+                tone = AppCardTone.Glass,
+                contentPadding = PaddingValues(horizontal = Spacing.lg)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -166,7 +170,10 @@ fun ReminderScreen(
             if (uiState.enabled) {
                 Spacer(modifier = Modifier.height(Spacing.xl))
 
-                AppCard(contentPadding = PaddingValues(horizontal = Spacing.lg)) {
+                AppCard(
+                    tone = AppCardTone.Glass,
+                    contentPadding = PaddingValues(horizontal = Spacing.lg)
+                ) {
                     AppSettingRow(
                         title = stringResource(R.string.reminder_time),
                         subtitle = stringResource(R.string.reminder_enable_desc),

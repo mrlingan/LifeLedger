@@ -74,6 +74,9 @@ internal const val ROUTE_CODEX_BROWSE = "preset_achievements?pick=false"
 internal const val ROUTE_CODEX_PICK = "preset_achievements?pick=true"
 internal const val ROUTE_SETTINGS = "settings"
 
+/** 首页板块定制：从设置进入的二级页面 */
+internal const val ROUTE_HOME_LAYOUT = "home_layout"
+
 /**
  * 底部导航的四个入口。
  *
@@ -135,6 +138,7 @@ fun AchievementNavHost(
     val listDensity by appSettings.listDensity.collectAsStateWithLifecycle()
     val fontScale by appSettings.fontScale.collectAsStateWithLifecycle()
     val motion by appSettings.motion.collectAsStateWithLifecycle()
+    val liquidGlass by appSettings.liquidGlass.collectAsStateWithLifecycle()
     val backgroundImageUri by appSettings.backgroundImageUri.collectAsStateWithLifecycle()
     val backgroundImageOpacity by appSettings.backgroundImageOpacity.collectAsStateWithLifecycle()
 
@@ -190,7 +194,13 @@ fun AchievementNavHost(
         backgroundImage = backgroundImage,
         backgroundImageSet = backgroundImageUri != null,
         backgroundImageOpacity = backgroundImageOpacity,
-        contentModifier = Modifier.liquidGlassBackdrop(glassBackdrop, enabled = barVisible),
+        // 关掉液态玻璃时底栏不采样、也不录这一层：省一遍整屏录制，
+        // 底栏自己退回纯色磨砂（采样源传 null）
+        glassEnabled = liquidGlass,
+        contentModifier = Modifier.liquidGlassBackdrop(
+            glassBackdrop,
+            enabled = barVisible && liquidGlass
+        ),
         overlay = {
             if (barVisible) {
                 AppBottomBar(
@@ -204,7 +214,7 @@ fun AchievementNavHost(
                     onSelect = { index ->
                         navController.navigateToTab(BottomTab.entries[index].navigateRoute)
                     },
-                    backdrop = glassBackdrop,
+                    backdrop = glassBackdrop.takeIf { liquidGlass },
                     modifier = Modifier.align(Alignment.BottomCenter),
                     // 「记录成就」放在四个 tab 正中间：它是动作，不是页面
                     centerAction = AppBottomBarAction(
@@ -359,6 +369,10 @@ fun AchievementNavHost(
 
                         composable("data_security") {
                             DataSecurityRoute(navController = navController)
+                        }
+
+                        composable(ROUTE_HOME_LAYOUT) {
+                            HomeLayoutRoute(navController = navController)
                         }
 
                         composable(ROUTE_SETTINGS) {

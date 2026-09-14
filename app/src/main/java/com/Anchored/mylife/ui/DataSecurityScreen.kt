@@ -28,6 +28,7 @@ import com.Anchored.mylife.R
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppProgressBar
 import com.Anchored.mylife.ui.components.AppSwitch
@@ -88,7 +89,7 @@ fun DataSecurityScreen(
         ) {
             Spacer(modifier = Modifier.height(Spacing.lg))
 
-            AppCard {
+            AppCard(tone = AppCardTone.Glass) {
                 SectionHeader(title = stringResource(R.string.data_security_location))
                 Spacer(modifier = Modifier.height(Spacing.md))
 
@@ -162,7 +163,7 @@ private fun EncryptionCard(
     val colors = AppTheme.colors
     val migrating = state.migration is EncryptionMigrationUi.Running
 
-    AppCard {
+    AppCard(tone = AppCardTone.Glass) {
         SectionHeader(
             title = stringResource(R.string.data_security_encryption),
             subtitle = stringResource(

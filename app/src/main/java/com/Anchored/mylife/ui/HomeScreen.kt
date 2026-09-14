@@ -4,7 +4,6 @@ import android.text.format.DateFormat
 import com.Anchored.mylife.R
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,14 +17,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.data.database.Achievement
+import com.Anchored.mylife.data.settings.HomeSection
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppAvatar
 import com.Anchored.mylife.ui.components.AppDialog
@@ -36,6 +36,7 @@ import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.home.CategoryProgressSection
 import com.Anchored.mylife.ui.home.HomeFooter
 import com.Anchored.mylife.ui.home.HomeHeader
+import com.Anchored.mylife.ui.home.HomeImageSection
 import com.Anchored.mylife.ui.home.LifeProgressSection
 import com.Anchored.mylife.ui.home.OverviewMetrics
 import com.Anchored.mylife.ui.home.RecentAchievementsSection
@@ -52,8 +53,9 @@ import java.util.Locale
 /**
  * 首页：人生仪表盘。
  *
- * 这一层只做组合，每段实现在 `ui/home/` 下：
- *   问候 → 人生进度 → 核心数据 → 分类进度 → 最近解锁 → 收尾
+ * 问候语固定在最上方，下面几段（人生进度 / 核心数据 / 分类进度 / 最近解锁 / 收尾）
+ * 由用户在「设置 → 首页板块」里决定显示哪些、按什么顺序，这里照单渲染。
+ * 每段实现在 `ui/home/` 下。
  *
  * 首页回答三个问题：我走到哪了、我完成了什么、我用它记录了多久。
  * 完整列表不在这里（见 AllAchievementsScreen），所以首页长度不随记录数增长。
@@ -64,20 +66,27 @@ fun HomeRoute(
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sections by viewModel.homeSections.collectAsStateWithLifecycle()
+    val categoryColors by viewModel.categoryColors.collectAsStateWithLifecycle()
+    val homeImagePath by viewModel.homeImagePath.collectAsStateWithLifecycle()
     val presetTexts = rememberPresetTexts()
     var showAddOptions by remember { mutableStateOf(false) }
     var showLevelProgress by remember { mutableStateOf(false) }
 
     HomeScreen(
         uiState = uiState,
+        sections = sections,
         labelOfCategory = presetTexts::categoryOf,
+        colorOfCategory = { category -> storedColorToColor(categoryColors[category]) },
+        homeImagePath = homeImagePath,
         onAchievementClick = { id -> navController.navigate("achievement_detail/$id") },
         onAddClick = { showAddOptions = true },
-        onOpenProfile = { navController.navigate("profile") },
         onLevelClick = { showLevelProgress = true },
         // 图鉴和成就列表都是底部导航的 tab，用 tab 切换保证选中态与返回栈一致
         onOpenCodex = { navController.navigateToTab(ROUTE_CODEX_BROWSE) },
-        onOpenAllAchievements = { navController.navigateToTab(ROUTE_ACHIEVEMENTS) }
+        onOpenAllAchievements = { navController.navigateToTab(ROUTE_ACHIEVEMENTS) },
+        // 板块全被隐藏时，首页给一个直达入口，不用自己绕到设置里找
+        onOpenHomeLayout = { navController.navigate(ROUTE_HOME_LAYOUT) }
     )
 
     if (showAddOptions) {
@@ -113,16 +122,20 @@ fun HomeRoute(
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
+    sections: List<HomeSection>,
     labelOfCategory: (String) -> String,
+    /** 分类圆环的颜色；没挑过的分类返回 null，用主题强调色 */
+    colorOfCategory: (String) -> Color? = { null },
+    /** 自定义图片那一张卡片的图；null = 没上传过，那一段不显示 */
+    homeImagePath: String? = null,
     onAchievementClick: (Long) -> Unit,
     onAddClick: () -> Unit,
-    onOpenProfile: () -> Unit,
     onLevelClick: () -> Unit,
     onOpenCodex: () -> Unit,
-    onOpenAllAchievements: () -> Unit
+    onOpenAllAchievements: () -> Unit,
+    onOpenHomeLayout: () -> Unit
 ) {
     val colors = AppTheme.colors
-    val profileLabel = stringResource(R.string.profile_title)
 
     Scaffold(containerColor = AppTheme.pageColor) { innerPadding ->
         LazyColumn(
@@ -146,21 +159,20 @@ fun HomeScreen(
                     subtitle = uiState.signature.ifBlank { stringResource(R.string.home_motto) },
                     // 「记录成就」已经移到底部导航正中间，顶栏不再放按钮
                     eyebrow = rememberTodayDate(),
-                    // 配过昵称或头像才显示：新用户第一眼不会看到一个空的人形占位
+                    // 配过昵称或头像才显示：新用户第一眼不会看到一个空的人形占位。
+                    // 头像只作展示，点了不跳转——个人资料的入口在设置页顶部那张资料卡上
+                    // （首页这一块是"仪表盘"，不该藏一个会把人带走的按钮）
                     avatar = if (
-                        uiState.nickname.isNotBlank() || uiState.avatarPath != null
+                        uiState.nickname.isNotBlank() ||
+                        uiState.avatarPath != null ||
+                        uiState.avatarPreset != null
                     ) {
                         {
                             AppAvatar(
                                 name = uiState.nickname,
                                 path = uiState.avatarPath,
-                                size = Sizes.avatarMd,
-                                modifier = Modifier
-                                    .clickable(onClick = onOpenProfile)
-                                    // 头像是个可点入口，给读屏一个名字
-                                    .semantics {
-                                        contentDescription = profileLabel
-                                    }
+                                preset = uiState.avatarPreset,
+                                size = Sizes.avatarMd
                             )
                         }
                     } else {
@@ -183,48 +195,112 @@ fun HomeScreen(
                     )
                 }
             } else {
-                item(key = "life_progress") {
-                    LifeProgressSection(uiState = uiState, onClick = onLevelClick)
+                // 板块由用户排序：按配置逐个铺开，key 用板块名，
+                // 改顺序时列表项不会因为复用而串内容
+                if (sections.isEmpty()) {
+                    item(key = "sections_hidden") {
+                        EmptyState(
+                            title = stringResource(R.string.home_sections_hidden_title),
+                            description = stringResource(R.string.home_sections_hidden_desc),
+                            action = {
+                                AppButton(
+                                    text = stringResource(R.string.home_sections_hidden_action),
+                                    onClick = onOpenHomeLayout
+                                )
+                            }
+                        )
+                    }
                 }
 
-                item(key = "overview") {
-                    OverviewMetrics(
-                        uiState = uiState,
-                        modifier = Modifier.padding(top = Spacing.xxl)
-                    )
-                }
-
-                item(key = "categories") {
-                    CategoryProgressSection(
-                        items = uiState.categories,
-                        unlockedCount = uiState.codexUnlocked,
-                        totalCount = uiState.codexTotal,
-                        labelOf = labelOfCategory,
-                        onViewAll = onOpenCodex,
-                        modifier = Modifier.padding(top = Spacing.xxl)
-                    )
-                }
-
-                item(key = "recent") {
-                    RecentAchievementsSection(
-                        items = uiState.recent,
-                        onClick = onAchievementClick,
-                        onViewAll = onOpenAllAchievements,
-                        modifier = Modifier.padding(top = Spacing.xxl)
-                    )
-                }
-
-                item(key = "footer") {
-                    HomeFooter(
-                        recordLine = rememberRecordLine(
-                            firstRecordDate = uiState.firstRecordDate,
-                            recordedDays = uiState.recordedDays
-                        ),
-                        modifier = Modifier.padding(top = Spacing.xxxl)
-                    )
+                sections.forEachIndexed { index, section ->
+                    item(key = section.name) {
+                        HomeSectionBlock(
+                            section = section,
+                            uiState = uiState,
+                            labelOfCategory = labelOfCategory,
+                            colorOfCategory = colorOfCategory,
+                            homeImagePath = homeImagePath,
+                            onAchievementClick = onAchievementClick,
+                            onLevelClick = onLevelClick,
+                            onOpenCodex = onOpenCodex,
+                            onOpenAllAchievements = onOpenAllAchievements,
+                            // 第一段紧接问候语（留白由问候语自己带），
+                            // 之后每段按原来的节奏分隔
+                            modifier = Modifier.padding(
+                                top = when {
+                                    index == 0 -> 0.dp
+                                    section == HomeSection.FOOTER -> Spacing.xxxl
+                                    else -> Spacing.xxl
+                                }
+                            )
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * 首页中的一段。
+ *
+ * 每段的留白、数据都在各自实现里，这里只做「板块 → 内容」的映射，
+ * 所以加新板块时：先在 [HomeSection] 里加一项，再来这里补一个分支。
+ */
+@Composable
+private fun HomeSectionBlock(
+    section: HomeSection,
+    uiState: HomeUiState,
+    labelOfCategory: (String) -> String,
+    colorOfCategory: (String) -> Color?,
+    homeImagePath: String?,
+    onAchievementClick: (Long) -> Unit,
+    onLevelClick: () -> Unit,
+    onOpenCodex: () -> Unit,
+    onOpenAllAchievements: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (section) {
+        HomeSection.LIFE_PROGRESS -> LifeProgressSection(
+            uiState = uiState,
+            onClick = onLevelClick,
+            modifier = modifier
+        )
+
+        HomeSection.OVERVIEW -> OverviewMetrics(
+            uiState = uiState,
+            modifier = modifier
+        )
+
+        HomeSection.CATEGORIES -> CategoryProgressSection(
+            items = uiState.categories,
+            unlockedCount = uiState.codexUnlocked,
+            totalCount = uiState.codexTotal,
+            labelOf = labelOfCategory,
+            colorOf = colorOfCategory,
+            onViewAll = onOpenCodex,
+            modifier = modifier
+        )
+
+        HomeSection.CUSTOM_IMAGE -> HomeImageSection(
+            path = homeImagePath,
+            modifier = modifier
+        )
+
+        HomeSection.RECENT -> RecentAchievementsSection(
+            items = uiState.recent,
+            onClick = onAchievementClick,
+            onViewAll = onOpenAllAchievements,
+            modifier = modifier
+        )
+
+        HomeSection.FOOTER -> HomeFooter(
+            recordLine = rememberRecordLine(
+                firstRecordDate = uiState.firstRecordDate,
+                recordedDays = uiState.recordedDays
+            ),
+            modifier = modifier
+        )
     }
 }
 
@@ -334,13 +410,14 @@ private fun HomeScreenPreview() {
     LifeLedgerTheme {
         HomeScreen(
             uiState = previewHomeState,
+            sections = HomeSection.DEFAULT_ORDER,
             labelOfCategory = { it },
             onAchievementClick = {},
             onAddClick = {},
-            onOpenProfile = {},
             onLevelClick = {},
             onOpenCodex = {},
-            onOpenAllAchievements = {}
+            onOpenAllAchievements = {},
+            onOpenHomeLayout = {}
         )
     }
 }
@@ -351,13 +428,37 @@ private fun HomeScreenEmptyPreview() {
     LifeLedgerTheme {
         HomeScreen(
             uiState = HomeUiState(isLoaded = true),
+            sections = HomeSection.DEFAULT_ORDER,
             labelOfCategory = { it },
             onAchievementClick = {},
             onAddClick = {},
-            onOpenProfile = {},
             onLevelClick = {},
             onOpenCodex = {},
-            onOpenAllAchievements = {}
+            onOpenAllAchievements = {},
+            onOpenHomeLayout = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 900, name = "首页 · 自定义板块（已隐藏两项）")
+@Composable
+private fun HomeScreenCustomSectionsPreview() {
+    LifeLedgerTheme {
+        HomeScreen(
+            uiState = previewHomeState,
+            // 用户把「人生进度」和收尾一行关掉了，其余顺序也换过
+            sections = listOf(
+                HomeSection.OVERVIEW,
+                HomeSection.RECENT,
+                HomeSection.CATEGORIES
+            ),
+            labelOfCategory = { it },
+            onAchievementClick = {},
+            onAddClick = {},
+            onLevelClick = {},
+            onOpenCodex = {},
+            onOpenAllAchievements = {},
+            onOpenHomeLayout = {}
         )
     }
 }
@@ -368,13 +469,14 @@ private fun HomeScreenDarkPreview() {
     LifeLedgerTheme(darkTheme = true) {
         HomeScreen(
             uiState = previewHomeState,
+            sections = HomeSection.DEFAULT_ORDER,
             labelOfCategory = { it },
             onAchievementClick = {},
             onAddClick = {},
-            onOpenProfile = {},
             onLevelClick = {},
             onOpenCodex = {},
-            onOpenAllAchievements = {}
+            onOpenAllAchievements = {},
+            onOpenHomeLayout = {}
         )
     }
 }

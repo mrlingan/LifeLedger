@@ -7,9 +7,13 @@ import com.Anchored.mylife.data.database.AchievementDatabase
 import com.Anchored.mylife.data.database.Media
 import com.Anchored.mylife.data.database.Note
 import com.Anchored.mylife.data.database.PresetAchievement
+import com.Anchored.mylife.data.achievement.AchievementIcon
+import com.Anchored.mylife.data.achievement.IconImageStore
+import com.Anchored.mylife.data.home.HomeImageStore
 import com.Anchored.mylife.data.crypto.decrypted
 import com.Anchored.mylife.data.crypto.encrypted
 import com.Anchored.mylife.data.profile.ProfileImageStore
+import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.data.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -46,7 +50,9 @@ class BackupManager(
     private val context: Context,
     private val database: AchievementDatabase,
     private val settings: AppSettings,
-    private val profileImages: ProfileImageStore
+    private val profileImages: ProfileImageStore,
+    private val iconImages: IconImageStore,
+    private val homeImages: HomeImageStore
 ) {
 
     private val mediaDir: File
@@ -54,6 +60,12 @@ class BackupManager(
 
     private val profileDir: File
         get() = File(context.filesDir, PROFILE_DIR_NAME)
+
+    private val iconDir: File
+        get() = File(context.filesDir, ICON_DIR_NAME)
+
+    private val homeDir: File
+        get() = File(context.filesDir, HOME_DIR_NAME)
 
     fun suggestedFileName(): String {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.CHINA).format(Date())
@@ -78,6 +90,15 @@ class BackupManager(
         val presets = database.presetAchievementDao().getAll()
         // 头像是文件，路径单独记，压缩包里放到 profile/ 下
         val avatarFile = settings.avatarPath.value?.let { File(it) }?.takeIf { it.isFile }
+        // 自定义成就图标同理：校验一下确实在图标目录里，免得把别处的文件也打进包
+        val iconFiles = achievements
+            .mapNotNull { AchievementIcon.customPath(it.iconEmoji) }
+            .map { File(it) }
+            .filter { it.isFile && it.parentFile?.canonicalPath == iconDir.canonicalPath }
+        // 首页那张自定义图片
+        val homeImageFile = settings.homeImagePath.value
+            ?.let { File(it) }
+            ?.takeIf { it.isFile && it.parentFile?.canonicalPath == homeDir.canonicalPath }
 
         val json = JSONObject().apply {
             put("version", BACKUP_VERSION)
@@ -91,12 +112,47 @@ class BackupManager(
                         "avatar",
                         avatarFile?.let { "$PROFILE_DIR_NAME/${it.name}" } ?: JSONObject.NULL
                     )
+                    // 内置头像：老备份里没有这一项，恢复时当作"没挑过"，
+                    // 界面会回落到昵称首字
+                    put("avatarPreset", settings.avatarPreset.value?.name ?: JSONObject.NULL)
                 }
             )
             put("achievements", achievements.toAchievementJsonArray())
             put("notes", notes.toNoteJsonArray())
             put("media", mediaList.toMediaJsonArray())
             put("presets", presets.toPresetJsonArray())
+            // 分类偏好（自建分类名 + 首页显示哪五个）。老备份里没有这一段，
+            // 恢复时按"没有"处理：成就自己带的分类还在，清单会自动重建
+            put(
+                "categories",
+                JSONObject().apply {
+                    put(
+                        "custom",
+                        JSONArray().apply { settings.customCategories.value.forEach { put(it) } }
+                    )
+                    put(
+                        "home",
+                        JSONArray().apply { settings.homeCategories.value.forEach { put(it) } }
+                    )
+                    put(
+                        "colors",
+                        JSONObject().apply {
+                            settings.categoryColors.value.forEach { (name, color) ->
+                                put(name, color)
+                            }
+                        }
+                    )
+                }
+            )
+            put(
+                "home",
+                JSONObject().apply {
+                    put(
+                        "image",
+                        homeImageFile?.let { "$HOME_DIR_NAME/${it.name}" } ?: JSONObject.NULL
+                    )
+                }
+            )
         }
 
         val output = context.contentResolver.openOutputStream(uri)
@@ -120,6 +176,10 @@ class BackupManager(
                 }
 
                 avatarFile?.let { addFileToZip(zip, it.absolutePath, PROFILE_DIR_NAME) }
+
+                iconFiles.forEach { addFileToZip(zip, it.absolutePath, ICON_DIR_NAME) }
+
+                homeImageFile?.let { addFileToZip(zip, it.absolutePath, HOME_DIR_NAME) }
             }
         }
 
@@ -202,6 +262,8 @@ class BackupManager(
         }
 
         restoreProfile(profile)
+        restoreCategoryPreferences(json.optJSONObject("categories"))
+        restoreHomeImage(json.optJSONObject("home"))
 
         BackupSummary(
             achievementCount = achievements.size,
@@ -217,6 +279,8 @@ class BackupManager(
         // 旧的媒体文件一并清掉，避免留下孤儿文件
         mediaDir.listFiles()?.forEach { it.delete() }
         profileImages.clear()
+        iconImages.clear()
+        homeImages.clear()
     }
 
     /**
@@ -224,10 +288,18 @@ class BackupManager(
      *
      * 老版本的备份里没有 profile 字段：这时昵称和签名保持不动，
      * 但头像路径必须清掉——上面已经把头像目录清空了，留着就是个死路径。
+     *
+     * 头像的两个来源在包里各占一项：图片能解出来就用图片，内置头像只在没有图片时生效
+     * ——和 [com.Anchored.mylife.data.settings.AppSettings.setProfile] 里那份"二选一"是同一个约定。
      */
     private fun restoreProfile(profile: JSONObject?) {
         if (profile == null) {
-            settings.setProfile(settings.nickname.value, settings.signature.value, null)
+            settings.setProfile(
+                nickname = settings.nickname.value,
+                signature = settings.signature.value,
+                avatarPath = null,
+                avatarPreset = null
+            )
             return
         }
 
@@ -241,11 +313,69 @@ class BackupManager(
             ?.takeIf { it.isFile }
             ?.absolutePath
 
+        val avatarPreset = if (profile.isNull("avatarPreset")) {
+            null
+        } else {
+            AvatarPreset.fromName(profile.optString("avatarPreset").takeIf { it.isNotBlank() })
+        }
+
         settings.setProfile(
             nickname = profile.optString("nickname"),
             signature = profile.optString("signature"),
-            avatarPath = avatarPath
+            avatarPath = avatarPath,
+            avatarPreset = avatarPreset.takeIf { avatarPath == null }
         )
+    }
+
+    /**
+     * 恢复分类偏好。
+     *
+     * 自建分类名、首页显示哪五个、每个分类的圆环颜色都在这里。
+     * 老备份没有这一段（返回 null）时什么都不动，成就自带的分类会让清单自动补回来。
+     */
+    private fun restoreCategoryPreferences(categories: JSONObject?) {
+        if (categories == null) return
+
+        categories.optJSONArray("custom")?.let { array ->
+            val names = buildSet {
+                for (index in 0 until array.length()) {
+                    val name = array.optString(index).trim()
+                    if (name.isNotEmpty()) add(name)
+                }
+            }
+            settings.setCustomCategories(names)
+        }
+
+        categories.optJSONArray("home")?.let { array ->
+            val names = buildList {
+                for (index in 0 until array.length()) {
+                    val name = array.optString(index).trim()
+                    if (name.isNotEmpty()) add(name)
+                }
+            }
+            settings.setHomeCategories(names)
+        }
+
+        categories.optJSONObject("colors")?.let { colors ->
+            colors.keys().forEach { name ->
+                settings.setCategoryColor(name, colors.optString(name).takeIf { it.isNotBlank() })
+            }
+        }
+    }
+
+    /**
+     * 恢复首页那张自定义图片。
+     *
+     * 老备份没有这一段（json 里没有 home）→ 把路径清掉：
+     * 上面已经把图片目录清空了，继续留着一个绝对路径就是个死链。
+     */
+    private fun restoreHomeImage(home: JSONObject?) {
+        val relative = if (home == null || home.isNull("image")) {
+            null
+        } else {
+            home.optString("image").takeIf { it.isNotBlank() }
+        }
+        settings.setHomeImagePath(relative?.let { File(context.filesDir, it).absolutePath })
     }
 
     /** 只读 zip 里的 backup.json，读完就结束，不用把整包解出来 */
@@ -280,7 +410,9 @@ class BackupManager(
                 while (entry != null) {
                     val name = entry.name
                     val isContent = name.startsWith("$MEDIA_DIR_NAME/") ||
-                        name.startsWith("$PROFILE_DIR_NAME/")
+                        name.startsWith("$PROFILE_DIR_NAME/") ||
+                        name.startsWith("$ICON_DIR_NAME/") ||
+                        name.startsWith("$HOME_DIR_NAME/")
                     if (isContent && !entry.isDirectory) {
                         val target = File(context.filesDir, name)
                         target.parentFile?.mkdirs()
@@ -321,7 +453,8 @@ class BackupManager(
                     put("createdDate", item.createdDate)
                     put("completedDate", item.completedDate ?: JSONObject.NULL)
                     put("isCompleted", item.isCompleted)
-                    put("iconEmoji", item.iconEmoji)
+                    put("iconEmoji", relativeIconValue(item.iconEmoji))
+                    put("category", item.category)
                     put("presetId", item.presetId ?: JSONObject.NULL)
                 }
             )
@@ -378,6 +511,25 @@ class BackupManager(
 
     private fun relativeMediaName(path: String): String = "$MEDIA_DIR_NAME/${File(path).name}"
 
+    /**
+     * 图标落进备份时的值。
+     *
+     * emoji 原样保留；自定义图片换成 `icons/文件名`——绝对路径在另一台设备上没意义，
+     * 换机后私有目录的路径本来就不一样。只认图标目录里的文件，
+     * 别的路径（万一被手改过）原样带走，恢复时至少还能看出它原来指向哪儿。
+     */
+    private fun relativeIconValue(icon: String): String {
+        val file = AchievementIcon.customPath(icon)?.let { File(it) } ?: return icon
+        if (file.parentFile?.canonicalPath != iconDir.canonicalPath) return icon
+        return "$ICON_DIR_NAME/${file.name}"
+    }
+
+    /** 恢复时的反向翻译：`icons/文件名` → `file:<当前设备的绝对路径>` */
+    private fun absoluteIconValue(value: String): String {
+        if (!value.startsWith("$ICON_DIR_NAME/")) return value
+        return AchievementIcon.custom(File(context.filesDir, value).absolutePath)
+    }
+
     private fun absoluteMediaPath(relative: String?): String? {
         if (relative.isNullOrBlank()) return null
         return File(context.filesDir, relative).absolutePath
@@ -397,7 +549,8 @@ class BackupManager(
                 createdDate = item.optLong("createdDate"),
                 completedDate = if (item.isNull("completedDate")) null else item.optLong("completedDate"),
                 isCompleted = item.optBoolean("isCompleted"),
-                iconEmoji = item.optString("iconEmoji"),
+                iconEmoji = absoluteIconValue(item.optString("iconEmoji")),
+                category = item.optString("category"),
                 presetId = if (item.has("presetId") && !item.isNull("presetId")) {
                     item.optLong("presetId")
                 } else {
@@ -470,5 +623,7 @@ class BackupManager(
         const val JSON_ENTRY = "backup.json"
         const val MEDIA_DIR_NAME = "media"
         const val PROFILE_DIR_NAME = ProfileImageStore.DIRECTORY_NAME
+        const val ICON_DIR_NAME = IconImageStore.DIRECTORY_NAME
+        const val HOME_DIR_NAME = HomeImageStore.DIRECTORY_NAME
     }
 }

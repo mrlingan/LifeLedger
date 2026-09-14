@@ -51,13 +51,14 @@ val LocalBottomBarClearance = staticCompositionLocalOf<Dp> { 0.dp }
  *
  * @param backdrop 页面画面采样源。必须来自包裹了「背景 + 页面内容」的那一层，
  *   且底栏自己不在那一层里，否则玻璃会采样到自己
+ *   传 null 表示不启用液态玻璃：整条栏变成纯色磨砂，不再折射背后的内容
  */
 @Composable
 fun AppBottomBar(
     items: List<AppBottomBarItem>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    backdrop: LiquidGlassBackdrop,
+    backdrop: LiquidGlassBackdrop?,
     modifier: Modifier = Modifier,
     centerAction: AppBottomBarAction? = null
 ) {

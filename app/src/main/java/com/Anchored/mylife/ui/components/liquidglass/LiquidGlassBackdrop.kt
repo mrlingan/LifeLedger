@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -52,6 +53,34 @@ class LiquidGlassBackdrop internal constructor(
     /** 采样层尺寸，用来判断是否已经录到过画面 */
     internal var size by mutableStateOf(IntSize.Zero)
 }
+
+/**
+ * 页面内玻璃（卡片）的采样源。
+ *
+ * 页面里的卡片和底栏不一样：它自己就长在页面上，所以**不能**用底栏那块
+ * 「背景 + 页面」的采样层——那块层里包含卡片自己，玻璃会去采样自己（见上文的警告）。
+ * 卡片背后真正属于「别的东西」的，只有背景图与遮罩那一层，而那一层由
+ * [com.Anchored.mylife.ui.theme.LifeLedgerTheme] 铺在页面之下，页面录不到，
+ * 于是由主题录好之后通过这个 CompositionLocal 发给页面。
+ *
+ * 没有主题提供时是 null（预览、单测），卡片退回普通磨砂底，不会消失。
+ */
+val LocalLiquidGlassBackdrop = staticCompositionLocalOf<LiquidGlassBackdrop?> { null }
+
+/**
+ * 液态玻璃这个材质本身开没开。
+ *
+ * 和 [LocalLiquidGlassBackdrop] 是两件事：**有没有东西可以采样** ≠ **要不要玻璃**。
+ * 对话框就是最典型的例子——它活在自己的窗口里，采不到背后的页面（见
+ * [com.Anchored.mylife.ui.components.AppDialog]），但它里面的按钮、分段控件仍然
+ * 应该是玻璃材质：折射那一步退化成一层磨砂，高光与描边照旧。
+ *
+ * 所以组件判断"要不要画成玻璃"看这个值，判断"能不能折射"看采样源是不是 null：
+ * - 设置里关了玻璃 / 布局预览 → 这里 false，组件退回普通平面观感；
+ * - 页面上开着玻璃 → true + 有采样源，真折射；
+ * - 对话框里开着玻璃 → true + 没有采样源，磨砂玻璃。
+ */
+val LocalLiquidGlassEnabled = staticCompositionLocalOf { false }
 
 /**
  * 创建一块采样源。

@@ -39,6 +39,7 @@ import com.Anchored.mylife.data.backup.BackupSummary
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.components.AppDialog
 import com.Anchored.mylife.ui.components.AppDialogText
 import com.Anchored.mylife.ui.components.AppTextField
@@ -255,7 +256,7 @@ fun BackupScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(Sizes.gutter)
         ) {
-            AppCard {
+            AppCard(tone = AppCardTone.Glass) {
                 SectionHeader(title = stringResource(R.string.backup_current))
                 Spacer(modifier = Modifier.height(Spacing.lg))
                 Row(
@@ -284,7 +285,7 @@ fun BackupScreen(
 
             Spacer(modifier = Modifier.height(Spacing.md))
 
-            AppCard {
+            AppCard(tone = AppCardTone.Glass) {
                 Text(
                     text = stringResource(R.string.backup_export),
                     style = AppTheme.type.h3,
@@ -307,7 +308,7 @@ fun BackupScreen(
 
             Spacer(modifier = Modifier.height(Spacing.md))
 
-            AppCard {
+            AppCard(tone = AppCardTone.Glass) {
                 Text(
                     text = stringResource(R.string.backup_import),
                     style = AppTheme.type.h3,

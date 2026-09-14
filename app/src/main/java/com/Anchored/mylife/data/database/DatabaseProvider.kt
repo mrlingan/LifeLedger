@@ -29,7 +29,8 @@ object DatabaseProvider {
                 .addMigrations(
                     AchievementDatabase.MIGRATION_1_2,
                     AchievementDatabase.MIGRATION_2_3,
-                    AchievementDatabase.MIGRATION_3_4
+                    AchievementDatabase.MIGRATION_3_4,
+                    AchievementDatabase.MIGRATION_4_5
                 )
                 .build()
             instance = db

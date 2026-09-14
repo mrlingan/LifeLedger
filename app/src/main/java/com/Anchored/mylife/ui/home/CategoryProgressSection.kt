@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,6 +42,8 @@ internal fun CategoryProgressSection(
     unlockedCount: Int,
     totalCount: Int,
     labelOf: (String) -> String,
+    /** 用户在「设置 → 首页板块 → 分类颜色」里挑的颜色；没挑过返回 null，用主题强调色 */
+    colorOf: (String) -> Color? = { null },
     onViewAll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -48,7 +51,7 @@ internal fun CategoryProgressSection(
 
     AppCard(
         modifier = modifier.padding(horizontal = Sizes.gutter),
-        tone = AppCardTone.Surface
+        tone = AppCardTone.Glass
     ) {
         SectionHeader(
             title = stringResource(R.string.home_category_progress),
@@ -72,6 +75,7 @@ internal fun CategoryProgressSection(
                 CategoryProgressItem(
                     item = item,
                     label = labelOf(item.category),
+                    color = colorOf(item.category),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -83,9 +87,11 @@ internal fun CategoryProgressSection(
 private fun CategoryProgressItem(
     item: CategoryProgress,
     label: String,
+    color: Color?,
     modifier: Modifier = Modifier
 ) {
     val colors = AppTheme.colors
+    val ringColor = color ?: colors.accent
 
     Column(
         modifier = modifier,
@@ -94,7 +100,8 @@ private fun CategoryProgressItem(
         AppProgressRing(
             progress = item.progress,
             diameter = Sizes.categoryRing,
-            strokeWidth = Sizes.progressRing
+            strokeWidth = Sizes.progressRing,
+            color = ringColor
         ) {
             Text(
                 text = "${item.unlockedCount}",

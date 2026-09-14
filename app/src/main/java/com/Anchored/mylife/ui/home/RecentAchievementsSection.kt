@@ -3,7 +3,6 @@ package com.Anchored.mylife.ui.home
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,8 +105,9 @@ private fun RecentAchievementCard(
     val shape = RoundedCornerShape(Radius.md)
 
     AppCard(
-        modifier = modifier.clickable(onClick = onClick),
-        tone = AppCardTone.Elevated,
+        modifier = modifier,
+        tone = AppCardTone.Glass,
+        onClick = onClick,
         contentPadding = PaddingValues(Spacing.sm)
     ) {
         Box(
@@ -115,7 +115,8 @@ private fun RecentAchievementCard(
                 .fillMaxWidth()
                 .aspectRatio(2.2f)
                 .clip(shape)
-                .background(colors.surfaceSunken)
+                // 半透明：没配图的占位块也别把玻璃底挡死
+                .background(colors.surfaceSunken.copy(alpha = 0.55f))
                 .border(Sizes.hairline, colors.border, shape),
             contentAlignment = Alignment.Center
         ) {

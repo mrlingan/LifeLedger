@@ -1,6 +1,7 @@
 package com.Anchored.mylife.data.media
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import java.io.File
@@ -30,6 +31,23 @@ class MediaFileStore(private val context: Context) {
         return destination.absolutePath
     }
 
+    /**
+     * 写一张现成的图进私有目录，返回绝对路径。
+     *
+     * 相册之外还要有这条路，是因为演示数据里的配图是程序画出来的，
+     * 没有 content:// 来源可复制。
+     */
+    fun saveBitmap(bitmap: Bitmap, quality: Int = 90): String {
+        val destination = File(
+            mediaDir,
+            "media_${System.currentTimeMillis()}_${Random.nextInt(1000, 9999)}.jpg"
+        )
+        FileOutputStream(destination).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
+        }
+        return destination.absolutePath
+    }
+
     /** 删除私有目录里的文件；路径不在私有目录内的一律跳过，避免误删 */
     fun delete(path: String?) {
         if (path.isNullOrBlank()) return
@@ -39,6 +57,16 @@ class MediaFileStore(private val context: Context) {
                 file.delete()
             }
         }
+    }
+
+    /**
+     * 清空整个媒体目录。
+     *
+     * 只该在**数据库里的媒体行已经全部删掉**之后调用：
+     * 这个方法不检查引用，会让没删掉的行指向不存在的文件。
+     */
+    fun clear() {
+        mediaDir.listFiles()?.forEach { it.delete() }
     }
 
     private fun buildFileName(uri: Uri, fallbackExtension: String): String {

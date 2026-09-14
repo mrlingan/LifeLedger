@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
+import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.ui.rememberMediaThumbnail
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Sizes
@@ -25,14 +26,19 @@ import com.Anchored.mylife.ui.theme.Sizes
 /**
  * 圆形头像。
  *
- * 显示优先级：外部传入的预览图（刚选中还没保存的）→ 私有目录里的照片 → 昵称首字 → 人形图标。
- * 最后那个兜底是有必要的：新用户既没头像也没昵称，白框比图标更像"坏了"。
+ * 显示优先级：外部传入的预览图（刚选中还没保存的）→ 私有目录里的照片 → 内置头像 →
+ * 昵称首字 → 人形图标。
+ *
+ * 前两个是用户自己上传的，[preset] 是他在内置头像里挑的那个，两者只会有一个；
+ * 都没有的时候用昵称首字——这是多数用户的样子，不是异常状态。
+ * 最后那个人形图标只留给"既没头像也没昵称"的新用户：白框比图标更像"坏了"。
  */
 @Composable
 fun AppAvatar(
     name: String,
     modifier: Modifier = Modifier,
     path: String? = null,
+    preset: AvatarPreset? = null,
     size: Dp = Sizes.avatarMd,
     imageOverride: ImageBitmap? = null
 ) {
@@ -53,6 +59,11 @@ fun AppAvatar(
                 bitmap = bitmap,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            preset != null -> PresetAvatar(
+                preset = preset,
                 modifier = Modifier.fillMaxSize()
             )
 

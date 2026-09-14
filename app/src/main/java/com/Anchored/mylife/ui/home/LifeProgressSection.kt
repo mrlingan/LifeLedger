@@ -40,7 +40,7 @@ internal fun LifeProgressSection(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Sizes.gutter),
-        tone = AppCardTone.Elevated,
+        tone = AppCardTone.Glass,
         onClick = onClick
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -23,12 +23,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import com.Anchored.mylife.data.settings.AppSettings
 import com.Anchored.mylife.data.settings.ListDensity
 import com.Anchored.mylife.data.settings.MotionChoice
+import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassBackdrop
+import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassEnabled
+import com.Anchored.mylife.ui.components.liquidglass.liquidGlassBackdrop
+import com.Anchored.mylife.ui.components.liquidglass.rememberLiquidGlassBackdrop
 
 /**
  * 设计系统的统一入口。
@@ -176,6 +181,13 @@ private fun AppColors.toColorScheme(pageColor: Color = background): ColorScheme 
  * 内容再叠在最上面。遮罩只画这一次 —— 页面自己的根容器改用
  * [AppTheme.pageColor]（有图时是透明的），否则两层遮罩叠起来图片就看不见了。
  *
+ * 这一层背景还会**单独录进一份采样源**（[LocalLiquidGlassBackdrop]），
+ * 让页面里的玻璃卡片能折射它。底栏那份采样源录的是「背景 + 页面」，两者必须分开：
+ * 卡片自己就在页面里，录进同一层就会采样到自己。
+ *
+ * 用户在设置里关掉液态玻璃（[glassEnabled] = false）时这份采样源干脆不录：页面里的
+ * 卡片取不到采样源会自己退回普通卡片，界面也不用为一份没人用的图层买单。
+ *
  * @param backgroundImage 已经解码好的背景图；还没解码完可以传 null
  * @param backgroundImageSet 用户是否设置了背景图。解码未完成时也要靠它
  *   决定页面底色，免得图片加载出来的一瞬间整屏颜色跳一下
@@ -184,6 +196,8 @@ private fun AppColors.toColorScheme(pageColor: Color = background): ColorScheme 
  *   的画面，就得把这一整层录进同一个图层，所以录制的入口在这里，而不是每个页面各录一份
  * @param overlay 画在背景与内容之后、不被 [contentModifier] 覆盖的一层。
  *   玻璃底栏属于这一层：它必须能看见底下的内容，又不能把自己也录进采样图层
+ * @param glassEnabled 是否启用液态玻璃。关掉之后页面里的玻璃卡片退回普通卡片表面；
+ *   底栏由调用方传 null 采样源，退回纯色磨砂
  */
 @Composable
 fun LifeLedgerTheme(
@@ -192,6 +206,7 @@ fun LifeLedgerTheme(
     backgroundImage: ImageBitmap? = null,
     backgroundImageSet: Boolean = backgroundImage != null,
     backgroundImageOpacity: Float = AppSettings.BACKGROUND_OPACITY_DEFAULT,
+    glassEnabled: Boolean = true,
     contentModifier: Modifier = Modifier,
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit
@@ -203,6 +218,18 @@ fun LifeLedgerTheme(
     )
     val pageColor = if (backgroundImageSet) Color.Transparent else baseColors.background
     val systemDensity = LocalDensity.current
+
+    // 页面内玻璃（卡片）的采样源：只录背景层。
+    // 关掉开关、或者在布局预览里跑（预览不走真实的硬件加速录制管线）时给 null，
+    // 卡片取不到采样源就退回普通表面。
+    // 「有没有采样源」和「要不要玻璃」是两件事：前者看这个值，后者看
+    // [LocalLiquidGlassEnabled]（对话框里采不到页面，但材质仍然是玻璃）。
+    val glassOn = glassEnabled && !LocalInspectionMode.current
+    val pageGlassBackdrop = if (glassOn) {
+        rememberLiquidGlassBackdrop()
+    } else {
+        null
+    }
 
     // 应用内字号缩放：在系统字号之上再乘一层，只影响 sp，不动 dp
     val density = remember(systemDensity, display.fontScale) {
@@ -229,6 +256,8 @@ fun LifeLedgerTheme(
         LocalAppPageColor provides pageColor,
         LocalAppTypography provides AppType,
         LocalAppDisplay provides display,
+        LocalLiquidGlassBackdrop provides pageGlassBackdrop,
+        LocalLiquidGlassEnabled provides glassOn,
         LocalDensity provides density
     ) {
         MaterialTheme(
@@ -242,21 +271,36 @@ fun LifeLedgerTheme(
                         .fillMaxSize()
                         .then(contentModifier)
                 ) {
-                    if (backgroundImageSet) {
-                        if (backgroundImage != null) {
-                            Image(
-                                bitmap = backgroundImage,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        // 唯一的遮罩层：强度越低调越淡，图片越清楚
+                    // 背景层单独录一份，供页面内的玻璃卡片采样
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .liquidGlassBackdrop(pageGlassBackdrop)
+                    ) {
+                        // 底色永远先铺一层：没有背景图时采样层也得是不透明的，
+                        // 否则玻璃算出来的 alpha 是 0，卡片会退化成只剩描边的空框
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(baseColors.background.copy(alpha = 1f - opacity))
+                                .background(baseColors.background)
                         )
+
+                        if (backgroundImageSet) {
+                            if (backgroundImage != null) {
+                                Image(
+                                    bitmap = backgroundImage,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            // 唯一的遮罩层：强度越低调越淡，图片越清楚
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(baseColors.background.copy(alpha = 1f - opacity))
+                            )
+                        }
                     }
                     content()
                 }

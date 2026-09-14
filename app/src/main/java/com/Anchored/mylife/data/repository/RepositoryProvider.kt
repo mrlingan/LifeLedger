@@ -2,6 +2,8 @@ package com.Anchored.mylife.data.repository
 
 import android.content.Context
 import com.Anchored.mylife.data.backup.BackupManager
+import com.Anchored.mylife.data.achievement.IconImageStore
+import com.Anchored.mylife.data.home.HomeImageStore
 import com.Anchored.mylife.data.database.DatabaseProvider
 import com.Anchored.mylife.data.crypto.DataCipher
 import com.Anchored.mylife.data.crypto.DataEncryptionMigration
@@ -70,7 +72,14 @@ class RepositoryProvider private constructor(context: Context) {
 
     /** 数据备份 / 恢复 */
     val backupManager: BackupManager by lazy {
-        BackupManager(appContext, database, settings, profileImageStore)
+        BackupManager(
+            appContext,
+            database,
+            settings,
+            profileImageStore,
+            iconImageStore,
+            homeImageStore
+        )
     }
 
     /** 应用设置（深色模式等偏好），存在 SharedPreferences 里 */
@@ -81,6 +90,16 @@ class RepositoryProvider private constructor(context: Context) {
     /** 头像文件的私有副本 */
     val profileImageStore: ProfileImageStore by lazy {
         ProfileImageStore(appContext)
+    }
+
+    /** 自定义成就图标的私有副本 */
+    val iconImageStore: IconImageStore by lazy {
+        IconImageStore(appContext)
+    }
+
+    /** 首页自定义图片的私有副本 */
+    val homeImageStore: HomeImageStore by lazy {
+        HomeImageStore(appContext)
     }
 
     companion object {

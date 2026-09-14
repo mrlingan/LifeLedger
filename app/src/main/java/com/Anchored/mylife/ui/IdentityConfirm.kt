@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,11 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.Anchored.mylife.R
@@ -30,7 +25,7 @@ import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppDialog
 import com.Anchored.mylife.ui.components.AppDialogText
-import com.Anchored.mylife.ui.components.AppTextField
+import com.Anchored.mylife.ui.components.AppPinInput
 import com.Anchored.mylife.ui.theme.Spacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -115,7 +110,6 @@ private fun PinVerifyDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val focusRequester = remember { FocusRequester() }
     var pin by remember { mutableStateOf("") }
     var checking by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
@@ -152,29 +146,21 @@ private fun PinVerifyDialog(
         onDismissRequest = onDismiss,
         onConfirm = { submit() },
         confirmText = stringResource(R.string.common_ok),
+        confirmEnabled = !checking && pin.length >= AppPin.MIN_LENGTH,
         content = {
             Column {
-                AppTextField(
+                AppPinInput(
                     value = pin,
-                    onValueChange = { input ->
-                        pin = input.filter { it.isDigit() }.take(AppPin.MAX_LENGTH)
+                    onValueChange = { value ->
+                        pin = value
                         failed = false
                     },
-                    label = stringResource(R.string.lock_pin_field),
-                    singleLine = true,
-                    password = true,
                     isError = failed,
                     supportingText = if (failed) {
                         stringResource(R.string.lock_pin_wrong)
                     } else {
                         stringResource(R.string.identity_pin_hint)
                     },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.NumberPassword,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
-                    focusRequester = focusRequester,
                     enabled = !checking,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -191,10 +177,6 @@ private fun PinVerifyDialog(
             }
         }
     )
-
-    LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
-    }
 }
 
 /** 系统验证（指纹 / 面容 / 锁屏密码），结果转成挂起函数的返回值 */

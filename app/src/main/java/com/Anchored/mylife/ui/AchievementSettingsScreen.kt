@@ -33,11 +33,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.R
 import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
+import com.Anchored.mylife.ui.components.AchievementIconView
 import com.Anchored.mylife.ui.components.AppChip
 import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppSettingRow
 import com.Anchored.mylife.ui.components.AppSwitch
 import com.Anchored.mylife.ui.components.AppTopBar
+import com.Anchored.mylife.ui.components.IconUploadTile
+import com.Anchored.mylife.data.achievement.AchievementIcon
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
@@ -110,7 +114,12 @@ fun AchievementSettingsScreen(
 
             Spacer(modifier = Modifier.height(Spacing.xxl))
 
-            AppCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = Spacing.lg)) {
+            AppCard(
+                tone = AppCardTone.Glass,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = Spacing.lg
+                )
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -177,7 +186,12 @@ private fun SettingLabel(title: String, description: String) {
     )
 }
 
-/** 默认图标：一行四个，选中项用强调色描边，不做大色块 */
+/**
+ * 默认图标：一行八个，选中项用强调色描边，不做大色块。
+ *
+ * 最后一行是「上传」：用户可以拿自己的图当默认图标。选中的图标如果是上传的图，
+ * 它会先于 emoji 清单单独摆出来——否则"当前选中的是哪个"在格子里根本看不见。
+ */
 @Composable
 private fun IconPicker(
     choices: List<String>,
@@ -186,9 +200,14 @@ private fun IconPicker(
 ) {
     val colors = AppTheme.colors
     val shape = RoundedCornerShape(Radius.md)
+    val tiles = if (AchievementIcon.isCustom(selected)) {
+        listOf(selected) + choices
+    } else {
+        choices
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        choices.chunked(8).forEach { row ->
+        tiles.chunked(8).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 row.forEach { choice ->
                     val isSelected = choice == selected
@@ -205,10 +224,18 @@ private fun IconPicker(
                             .clickable { onSelect(choice) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = choice, style = AppTheme.type.h3)
+                        AchievementIconView(
+                            icon = choice,
+                            size = Sizes.avatarMd,
+                            textStyle = AppTheme.type.h3
+                        )
                     }
                 }
             }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            IconUploadTile(previousIcon = selected, onPicked = onSelect)
         }
     }
 }

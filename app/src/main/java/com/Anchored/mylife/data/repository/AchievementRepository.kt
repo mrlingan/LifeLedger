@@ -52,6 +52,7 @@ class AchievementRepository(
         title: String,
         description: String = "",
         iconEmoji: String = DEFAULT_ICON,
+        category: String = "",
         presetId: Long? = null,
         createdDate: Long = System.currentTimeMillis()
     ): Long = achievementDao.insertAchievement(
@@ -62,6 +63,7 @@ class AchievementRepository(
             completedDate = null,
             isCompleted = false,
             iconEmoji = iconEmoji,
+            category = category.trim(),
             presetId = presetId
         )
     )
@@ -73,14 +75,16 @@ class AchievementRepository(
         achievementId: Long,
         title: String,
         description: String,
-        iconEmoji: String
+        iconEmoji: String,
+        category: String
     ) {
         val existing = achievementDao.getAchievementById(achievementId) ?: return
         achievementDao.updateAchievement(
             existing.copy(
                 title = title.trim(),
                 description = description.trim(),
-                iconEmoji = iconEmoji
+                iconEmoji = iconEmoji,
+                category = category.trim()
             )
         )
     }
@@ -114,6 +118,12 @@ class AchievementRepository(
     /** 删除成就，Note / Media 记录由外键 CASCADE 自动清理 */
     suspend fun deleteAchievement(achievement: Achievement) =
         achievementDao.deleteAchievement(achievement)
+
+    /**
+     * 清空所有成就。笔记与媒体的**记录**由外键级联删掉，
+     * 磁盘上的图片文件不归这里管（见 MediaFileStore.clear）
+     */
+    suspend fun deleteAll() = achievementDao.deleteAllAchievements()
 
     suspend fun deleteAchievementById(achievementId: Long) {
         val achievement = achievementDao.getAchievementById(achievementId) ?: return

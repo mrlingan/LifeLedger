@@ -89,6 +89,25 @@ data class AppSizes(
     val switchWidth: Dp = 44.dp,
     val switchHeight: Dp = 26.dp,
     val switchKnob: Dp = 20.dp,
+    /** 应用内密码键盘：一个键的高度、密码圆点的直径、键盘最大宽度 */
+    val pinKey: Dp = 52.dp,
+    val pinDot: Dp = 14.dp,
+    val pinPad: Dp = 300.dp,
+    /** 编辑态控件：⊖ / ⊕ 的圆圈直径、里面的横杠长度、横杠粗细 */
+    val editControl: Dp = 22.dp,
+    val editGlyph: Dp = 10.dp,
+    val editStroke: Dp = 2.dp,
+    /** 分段控件的高度：滑块要按固定高度算位置，不能再靠内容撑 */
+    val segmented: Dp = 40.dp,
+    /** 分类圆环的颜色样块（挑色弹窗里也是它） */
+    val categorySwatch: Dp = 28.dp,
+    /**
+     * 首页那张自定义图片的高度。
+     *
+     * 刻意压到 72dp：人生进度那张卡在标准字号下大约 160dp 高，
+     * 这条横幅不到它的一半——用户要的是"一条图"，不是又一块内容。
+     */
+    val homeBanner: Dp = 72.dp,
     /** 屏幕左右统一留白 */
     val gutter: Dp = 16.dp
 )

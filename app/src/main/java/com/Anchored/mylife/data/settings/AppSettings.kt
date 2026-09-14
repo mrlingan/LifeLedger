@@ -2,6 +2,7 @@ package com.Anchored.mylife.data.settings
 
 import android.content.Context
 import com.Anchored.mylife.data.crypto.AppPin
+import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.data.repository.AchievementRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,6 +62,55 @@ enum class MotionChoice {
 enum class ReminderFrequency {
     EVERY_DAY,
     WEEKDAYS
+}
+
+/**
+ * 首页板块。
+ *
+ * 首页由这几段拼起来，用户可以在设置里决定显示哪些、按什么顺序。
+ * 顺序就是枚举的声明顺序，也就是默认顺序（[DEFAULT_ORDER]）。
+ *
+ * 这里只放"有哪些板块"，标题和说明文案在界面层映射（见 HomeLayoutScreen），
+ * 和 [ThemeMode] 的处理方式一致——数据层不认识资源 id。
+ */
+enum class HomeSection {
+    /** 人生进度：阶段 + 进度条 */
+    LIFE_PROGRESS,
+
+    /** 核心数据：已完成 / 进行中 / 总记录 / 坚持天数 */
+    OVERVIEW,
+
+    /** 分类进度：图鉴各分类的收集情况 */
+    CATEGORIES,
+
+    /**
+     * 自定义图片：一张自己上传的窄卡片（上传时可以裁剪）。
+     *
+     * 默认关着，而且**就算打开了、没有图片也不显示**——一个空框比没有这一段更难看。
+     * 高度只有人生进度那张卡的一半不到（见 Sizes.homeBanner），是一条横幅，不是主内容。
+     */
+    CUSTOM_IMAGE,
+
+    /** 最近解锁：最近完成的几条成就 */
+    RECENT,
+
+    /** 收尾一行「从什么时候开始记录」 */
+    FOOTER;
+
+    companion object {
+        /**
+         * 默认显示的三段：人生进度 / 核心数据 / 分类进度。
+         *
+         * 「最近解锁」和「记录起点」默认关着：前者一次多出三张卡片，把首页拉得比
+         * 一屏还长；后者只是一行日期。想看的人去「设置 → 首页板块」打开就行——
+         * 那两个开关还在，只是默认不占版面。
+         */
+        val DEFAULT_ORDER: List<HomeSection> = listOf(
+            LIFE_PROGRESS,
+            OVERVIEW,
+            CATEGORIES
+        )
+    }
 }
 
 /**
@@ -143,6 +193,17 @@ class AppSettings(context: Context) {
     private val _avatarPath = MutableStateFlow(prefs.getString(KEY_AVATAR_PATH, null))
     val avatarPath: StateFlow<String?> = _avatarPath.asStateFlow()
 
+    /**
+     * 挑过的内置头像；没挑过就是 null。
+     *
+     * 和 [avatarPath] 是二选一的两半：上传了图片就不会有内置头像，反过来也一样
+     * （见 [setProfile]）。两个都没有时界面用昵称的第一个字当头像。
+     */
+    private val _avatarPreset = MutableStateFlow(
+        AvatarPreset.fromName(prefs.getString(KEY_AVATAR_PRESET, null))
+    )
+    val avatarPreset: StateFlow<AvatarPreset?> = _avatarPreset.asStateFlow()
+
     private val _startChoice = MutableStateFlow(readStartChoice())
     val startChoice: StateFlow<StartChoice> = _startChoice.asStateFlow()
 
@@ -205,6 +266,140 @@ class AppSettings(context: Context) {
         _favoriteCategories.value = categories
     }
 
+    // ---------------- 首页板块 ----------------
+
+    /**
+     * 用户自己新建的分类名。
+     *
+     * 只存名字——分类不是实体，它和成就是"多对一的字符串"关系。
+     * 界面上看到的清单 = 图鉴内置 ∪ 这里 ∪ 成就上用过的
+     * （见 [com.Anchored.mylife.data.achievement.CategoryCatalog]）。
+     */
+    private val _customCategories = MutableStateFlow(
+        prefs.getStringSet(KEY_CUSTOM_CATEGORIES, emptySet()).orEmpty()
+    )
+    val customCategories: StateFlow<Set<String>> = _customCategories.asStateFlow()
+
+    fun addCustomCategory(name: String) {
+        val cleaned = name.trim()
+        if (cleaned.isEmpty()) return
+        setCustomCategories(_customCategories.value + cleaned)
+    }
+
+    fun removeCustomCategory(name: String) {
+        setCustomCategories(_customCategories.value - name)
+    }
+
+    /** 整份替换（备份恢复用）；日常增删走 [addCustomCategory] / [removeCustomCategory] */
+    fun setCustomCategories(categories: Set<String>) {
+        val cleaned = categories.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        prefs.edit().putStringSet(KEY_CUSTOM_CATEGORIES, cleaned).apply()
+        _customCategories.value = cleaned
+    }
+
+    /**
+     * 首页「分类进度」里显示哪几个分类，**列表顺序就是显示顺序**。
+     *
+     * 空列表 = 还没挑过：首页按"关注的优先 → 有进展的优先"自己排（原来的行为）。
+     * 挑过就按挑的来，最多五个——首页那一行只放得下五个圈。
+     */
+    private val _homeCategories = MutableStateFlow(readNameList(KEY_HOME_CATEGORIES))
+    val homeCategories: StateFlow<List<String>> = _homeCategories.asStateFlow()
+
+    fun setHomeCategories(categories: List<String>) {
+        val cleaned = categories.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        prefs.edit()
+            .putString(KEY_HOME_CATEGORIES, cleaned.joinToString(NAME_SEPARATOR))
+            .apply()
+        _homeCategories.value = cleaned
+    }
+
+    /** 分类名是用户自己起的，可能带逗号，所以用换行分隔（名字里再出现换行的概率可以忽略） */
+    private fun readNameList(key: String): List<String> {
+        val raw = prefs.getString(key, null) ?: return emptyList()
+        return raw.split(NAME_SEPARATOR).map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    /**
+     * 首页那张自定义图片的路径（已经复制进 files/home/）。
+     *
+     * null = 还没上传过。首页那一段只有在有图的时候才画，
+     * 所以"打开开关但没图"不会留下一个空框。
+     */
+    private val _homeImagePath = MutableStateFlow(
+        prefs.getString(KEY_HOME_IMAGE_PATH, null)
+    )
+    val homeImagePath: StateFlow<String?> = _homeImagePath.asStateFlow()
+
+    fun setHomeImagePath(path: String?) {
+        prefs.edit().putString(KEY_HOME_IMAGE_PATH, path).apply()
+        _homeImagePath.value = path
+    }
+
+    /**
+     * 分类圆环的颜色：分类名 → "#RRGGBB"。
+     *
+     * 只存用户改过的那些。没改过的分类不在这里，显示时回落到主题的强调色——
+     * 所以"清掉自定义"和"从没设过"是同一种状态，不用再存一个"默认"标记。
+     */
+    private val _categoryColors = MutableStateFlow(readCategoryColors())
+    val categoryColors: StateFlow<Map<String, String>> = _categoryColors.asStateFlow()
+
+    fun setCategoryColor(category: String, color: String?) {
+        val next = _categoryColors.value.toMutableMap()
+        if (color == null) next.remove(category) else next[category] = color
+        prefs.edit()
+            .putStringSet(
+                KEY_CATEGORY_COLORS,
+                next.map { (name, value) -> "$name$COLOR_SEPARATOR$value" }.toSet()
+            )
+            .apply()
+        _categoryColors.value = next
+    }
+
+    private fun readCategoryColors(): Map<String, String> =
+        prefs.getStringSet(KEY_CATEGORY_COLORS, emptySet())
+            .orEmpty()
+            .mapNotNull { entry ->
+                val separator = entry.indexOf(COLOR_SEPARATOR)
+                if (separator <= 0) {
+                    null
+                } else {
+                    entry.substring(0, separator) to entry.substring(separator + 1)
+                }
+            }
+            .toMap()
+
+    /**
+     * 首页要显示的板块，**列表顺序就是显示顺序**。
+     *
+     * 只存"要显示的"，没列出来的板块 = 隐藏。空列表是合法状态（首页只留问候语），
+     * 所以这里不能用集合：顺序和重复项都要能表达。
+     */
+    private val _homeSections = MutableStateFlow(readHomeSections())
+    val homeSections: StateFlow<List<HomeSection>> = _homeSections.asStateFlow()
+
+    fun setHomeSections(sections: List<HomeSection>) {
+        val cleaned = sections.distinct()
+        prefs.edit()
+            .putString(KEY_HOME_SECTIONS, cleaned.joinToString(SECTION_SEPARATOR) { it.name })
+            .apply()
+        _homeSections.value = cleaned
+    }
+
+    /**
+     * 读首页板块。
+     *
+     * 没存过（首次启动 / 从没动过这一项的老用户）→ 默认那三段；
+     * 存过但是空字符串 → 用户把板块全关了，不能退回默认。
+     */
+    private fun readHomeSections(): List<HomeSection> {
+        val raw = prefs.getString(KEY_HOME_SECTIONS, null) ?: return HomeSection.DEFAULT_ORDER
+        return raw
+            .split(SECTION_SEPARATOR)
+            .mapNotNull { name -> HomeSection.entries.firstOrNull { it.name == name } }
+    }
+
     // ---------------- 显示与动效 ----------------
 
     private val _listDensity = MutableStateFlow(readEnum(KEY_LIST_DENSITY, ListDensity.STANDARD))
@@ -215,6 +410,21 @@ class AppSettings(context: Context) {
 
     private val _motion = MutableStateFlow(readEnum(KEY_MOTION, MotionChoice.FULL))
     val motion: StateFlow<MotionChoice> = _motion.asStateFlow()
+
+    /**
+     * 液态玻璃开关，默认开启。
+     *
+     * 关掉之后底栏与卡片都不再折射背后的画面：主题层不再录采样层（省一遍整屏录制），
+     * 请求玻璃的卡片自己会退回普通卡片表面，底栏退回纯色磨砂——这也是
+     * API 31 以下设备的降级观感。
+     */
+    private val _liquidGlass = MutableStateFlow(prefs.getBoolean(KEY_LIQUID_GLASS, true))
+    val liquidGlass: StateFlow<Boolean> = _liquidGlass.asStateFlow()
+
+    fun setLiquidGlass(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LIQUID_GLASS, enabled).apply()
+        _liquidGlass.value = enabled
+    }
 
     fun setListDensity(value: ListDensity) {
         writeEnum(KEY_LIST_DENSITY, value)
@@ -277,20 +487,28 @@ class AppSettings(context: Context) {
     /**
      * 保存个人资料。
      *
-     * 昵称和签名去掉首尾空白再存；头像是文件，这里只记路径。
-     * 备份恢复也会走这个方法，所以它必须一次把三项都写全。
+     * 昵称和签名去掉首尾空白再存；头像有两个可能的来源——上传的图片记路径、
+     * 内置头像记名字，界面上只会有一个（[avatarPath] 与 [avatarPreset] 二选一）。
+     * 备份恢复也会走这个方法，所以它必须一次把四项都写全。
      */
-    fun setProfile(nickname: String, signature: String, avatarPath: String?) {
+    fun setProfile(
+        nickname: String,
+        signature: String,
+        avatarPath: String?,
+        avatarPreset: AvatarPreset?
+    ) {
         val name = nickname.trim()
         val motto = signature.trim()
         prefs.edit()
             .putString(KEY_NICKNAME, name)
             .putString(KEY_SIGNATURE, motto)
             .putString(KEY_AVATAR_PATH, avatarPath)
+            .putString(KEY_AVATAR_PRESET, avatarPreset?.name)
             .apply()
         _nickname.value = name
         _signature.value = motto
         _avatarPath.value = avatarPath
+        _avatarPreset.value = avatarPreset
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -329,14 +547,24 @@ class AppSettings(context: Context) {
         private const val KEY_NICKNAME = "profile_nickname"
         private const val KEY_SIGNATURE = "profile_signature"
         private const val KEY_AVATAR_PATH = "profile_avatar_path"
+        private const val KEY_AVATAR_PRESET = "profile_avatar_preset"
         private const val KEY_START_CHOICE = "start_choice"
         private const val KEY_DATA_ENCRYPTION = "data_encryption_enabled"
         private const val KEY_DEFAULT_ICON = "default_icon"
         private const val KEY_CONFIRM_COMPLETION = "confirm_completion"
         private const val KEY_FAVORITE_CATEGORIES = "favorite_categories"
+        private const val KEY_HOME_SECTIONS = "home_sections"
+        private const val SECTION_SEPARATOR = ","
+        private const val KEY_CATEGORY_COLORS = "category_colors"
+        private const val COLOR_SEPARATOR = "|"
+        private const val KEY_CUSTOM_CATEGORIES = "custom_categories"
+        private const val KEY_HOME_CATEGORIES = "home_categories"
+        private const val NAME_SEPARATOR = "\n"
+        private const val KEY_HOME_IMAGE_PATH = "home_image_path"
         private const val KEY_LIST_DENSITY = "list_density"
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_MOTION = "motion_level"
+        private const val KEY_LIQUID_GLASS = "liquid_glass_enabled"
         private const val KEY_REMINDER_ENABLED = "reminder_enabled"
         private const val KEY_REMINDER_HOUR = "reminder_hour"
         private const val KEY_REMINDER_MINUTE = "reminder_minute"

@@ -4,14 +4,15 @@ import com.Anchored.mylife.R
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.Anchored.mylife.data.database.Achievement
+import com.Anchored.mylife.ui.components.AchievementIconView
 import com.Anchored.mylife.ui.components.AchievementCard
 import com.Anchored.mylife.ui.components.AchievementStatus
 import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.theme.AppTheme
+import com.Anchored.mylife.ui.theme.Sizes
 
 /**
  * 成就列表项：左侧图标、中间标题与时间、右侧一键切换完成状态。
@@ -31,10 +32,7 @@ internal fun AchievementRow(
         title = achievement.title,
         description = achievement.description.takeIf { it.isNotBlank() },
         icon = {
-            Text(
-                text = achievement.iconEmoji,
-                style = AppTheme.type.numberMedium
-            )
+            AchievementIconView(icon = achievement.iconEmoji, size = Sizes.avatarMd)
         },
         status = if (achievement.isCompleted) {
             AchievementStatus.Completed
