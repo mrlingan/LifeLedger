@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -28,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import android.net.Uri
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -51,9 +51,11 @@ import com.Anchored.mylife.data.settings.MotionChoice
 import com.Anchored.mylife.ui.components.AppBottomBar
 import com.Anchored.mylife.ui.components.AppBottomBarAction
 import com.Anchored.mylife.ui.components.AppBottomBarItem
+import com.Anchored.mylife.ui.components.AppIcons
 import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.components.liquidglass.liquidGlassBackdrop
 import com.Anchored.mylife.ui.components.liquidglass.rememberLiquidGlassBackdrop
+import com.Anchored.mylife.ui.reward.RewardStoreRoute
 import com.Anchored.mylife.ui.theme.AppMotion
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.AppDisplay
@@ -73,6 +75,16 @@ internal const val ROUTE_CODEX = "preset_achievements?pick={pick}"
 internal const val ROUTE_CODEX_BROWSE = "preset_achievements?pick=false"
 internal const val ROUTE_CODEX_PICK = "preset_achievements?pick=true"
 internal const val ROUTE_SETTINGS = "settings"
+internal const val ROUTE_GROWTH = "growth"
+
+/** 积分商城：从「成长」或「我的」进去的二级页面，不是底栏的一页 */
+internal const val ROUTE_REWARD_STORE = "reward_store"
+
+/** 底栏的「我的」：先占位，这一页放什么还没定（见 [MyScreen]） */
+internal const val ROUTE_MY = "my"
+
+/** 个人资料：不再是底栏的一页，只从设置页顶部的资料卡进去 */
+internal const val ROUTE_PROFILE = "profile"
 
 /** 首页板块定制：从设置进入的二级页面 */
 internal const val ROUTE_HOME_LAYOUT = "home_layout"
@@ -90,14 +102,9 @@ private enum class BottomTab(
     val icon: ImageVector
 ) {
     Home(ROUTE_HOME, ROUTE_HOME, R.string.nav_home, Icons.Outlined.Home),
-    Achievements(
-        ROUTE_ACHIEVEMENTS,
-        ROUTE_ACHIEVEMENTS,
-        R.string.nav_achievements,
-        Icons.AutoMirrored.Outlined.List
-    ),
-    Codex(ROUTE_CODEX, ROUTE_CODEX_BROWSE, R.string.nav_codex, Icons.Outlined.Star),
-    Settings(ROUTE_SETTINGS, ROUTE_SETTINGS, R.string.nav_settings, Icons.Outlined.Settings)
+    Codex(ROUTE_CODEX, ROUTE_CODEX_BROWSE, R.string.nav_codex, AppIcons.Compass),
+    Growth(ROUTE_GROWTH, ROUTE_GROWTH, R.string.nav_growth, Icons.Outlined.Star),
+    My(ROUTE_MY, ROUTE_MY, R.string.nav_my, Icons.Outlined.Person)
 }
 
 /**
@@ -139,13 +146,11 @@ fun AchievementNavHost(
     val fontScale by appSettings.fontScale.collectAsStateWithLifecycle()
     val motion by appSettings.motion.collectAsStateWithLifecycle()
     val liquidGlass by appSettings.liquidGlass.collectAsStateWithLifecycle()
-    val backgroundImageUri by appSettings.backgroundImageUri.collectAsStateWithLifecycle()
+    val backgroundImagePath by appSettings.backgroundImagePath.collectAsStateWithLifecycle()
     val backgroundImageOpacity by appSettings.backgroundImageOpacity.collectAsStateWithLifecycle()
 
-    // 背景图在这里解码一次，交给主题层统一铺底
-    val backgroundImage = backgroundImageUri?.let { uri ->
-        rememberUriThumbnail(Uri.parse(uri), sizePx = 1440)
-    }
+    // 背景图在这里解码一次，交给主题层统一铺底（副本在 files/background/ 里）
+    val backgroundImage = rememberStoredImageThumbnail(backgroundImagePath, sizePx = 1440)
 
     val darkTheme = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -192,7 +197,7 @@ fun AchievementNavHost(
         darkTheme = darkTheme,
         display = display,
         backgroundImage = backgroundImage,
-        backgroundImageSet = backgroundImageUri != null,
+        backgroundImageSet = backgroundImagePath != null,
         backgroundImageOpacity = backgroundImageOpacity,
         // 关掉液态玻璃时底栏不采样、也不录这一层：省一遍整屏录制，
         // 底栏自己退回纯色磨砂（采样源传 null）
@@ -355,8 +360,13 @@ fun AchievementNavHost(
                             BackupRoute(navController = navController)
                         }
 
-                        composable("profile") {
-                            ProfileRoute(navController = navController)
+                        composable(ROUTE_PROFILE) {
+                            // 从设置页的资料卡进来，是二级页面：带返回箭头
+                            ProfileRoute(navController = navController, topLevel = false)
+                        }
+
+                        composable(ROUTE_MY) {
+                            MyRoute(navController = navController)
                         }
 
                         composable("achievement_settings") {
@@ -377,6 +387,14 @@ fun AchievementNavHost(
 
                         composable(ROUTE_SETTINGS) {
                             SettingsRoute(navController = navController)
+                        }
+
+                        composable(ROUTE_GROWTH) {
+                            GrowthRoute(navController = navController)
+                        }
+
+                        composable(ROUTE_REWARD_STORE) {
+                            RewardStoreRoute(navController = navController)
                         }
                     }
                     }

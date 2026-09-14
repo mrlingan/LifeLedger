@@ -2,8 +2,8 @@ package com.Anchored.mylife.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -14,15 +14,11 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -41,21 +37,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.R
 import com.Anchored.mylife.data.database.PresetAchievement
+import com.Anchored.mylife.ui.codex.CodexCategoryCard
 import com.Anchored.mylife.ui.codex.CodexEntryCard
-import com.Anchored.mylife.ui.codex.CodexProgress
+import com.Anchored.mylife.ui.codex.CodexHeader
+import com.Anchored.mylife.ui.codex.CodexRarityCard
+import com.Anchored.mylife.ui.codex.CodexRecentSection
+import com.Anchored.mylife.ui.codex.CodexStatusTabs
+import com.Anchored.mylife.ui.codex.CodexSummaryCard
 import com.Anchored.mylife.ui.codex.formatRate
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
-import com.Anchored.mylife.ui.components.AppChip
 import com.Anchored.mylife.ui.components.AppEmblem
-import com.Anchored.mylife.ui.components.AppSegmentedControl
-import com.Anchored.mylife.ui.components.AppTextField
-import com.Anchored.mylife.ui.components.AppTopBar
 import com.Anchored.mylife.ui.components.CompletionConfirmDialog
-import com.Anchored.mylife.ui.components.AppTopBarStyle
 import com.Anchored.mylife.ui.components.EmptyState
 import com.Anchored.mylife.ui.components.LocalBottomBarClearance
 import com.Anchored.mylife.ui.components.RarityBadge
+import com.Anchored.mylife.ui.components.SectionHeader
 import com.Anchored.mylife.ui.components.appearAnimation
 import com.Anchored.mylife.ui.components.label
 import com.Anchored.mylife.ui.theme.AppTheme
@@ -68,8 +65,14 @@ import com.Anchored.mylife.ui.theme.Spacing
 /**
  * 图鉴：人生经历档案馆。
  *
- * 结构：大标题 → 总进度 → 搜索与筛选 → 网格。
- * 网格里一条记录 = 徽记 + 名称 + 描述 + 细分隔线 + 稀有度与时间，
+ * 结构（自上而下）：
+ * 页头与搜索药丸 → 三个状态标签 → 收集进度 → 分类图鉴 → 最新解锁 → 稀有度图鉴 → 全部条目。
+ *
+ * 收集进度与分类是筛选的入口，一直在；「最新解锁」和「稀有度图鉴」是两段总览，
+ * 只在没筛任何条件时出现（[PresetCodexUiState.isBrowsing]）——
+ * 已经在按关键词、状态或分类找某一条的人，不该再被两段总览挡在结果前面。
+ *
+ * 索引里一条记录 = 徽记 + 名称 + 描述 + 稀有度（未解锁的补一行达成率），
  * 已解锁的排前面、对比度更高，未解锁的保留轮廓但整体降一档。
  *
  * 达成状态的口径没变：存在 presetId 相同且已完成的成就才算解锁，
@@ -147,9 +150,9 @@ fun PresetCodexScreen(
     onStatusFilterChange: (CodexStatusFilter) -> Unit,
     onItemClick: (PresetAchievement) -> Unit
 ) {
-    val colors = AppTheme.colors
     val textOf: (PresetAchievement) -> PresetText = { presetTexts.textOf(it) }
     val entries = uiState.gridItems(textOf)
+    val browsing = uiState.isBrowsing
 
     Scaffold(
         containerColor = AppTheme.pageColor,
@@ -169,66 +172,88 @@ fun PresetCodexScreen(
                 bottom = Spacing.xxxl + LocalBottomBarClearance.current
             ),
             horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
+            // 基础节奏 16dp，每个板块再按自己的身份补一段：
+            // 卡片之间 32、索引条目之间 24，页面读起来才有层次
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "header") {
-                AppTopBar(
+                CodexHeader(
                     title = stringResource(R.string.codex_title),
                     subtitle = if (pickMode) {
                         stringResource(R.string.codex_subtitle_pick)
                     } else {
                         stringResource(R.string.codex_subtitle)
                     },
-                    style = AppTopBarStyle.Large,
+                    query = uiState.query,
+                    onQueryChange = onQueryChange,
                     onBack = onBack
                 )
             }
 
+            item(span = { GridItemSpan(maxLineSpan) }, key = "tabs") {
+                CodexStatusTabs(
+                    labels = CodexStatusFilter.entries.map { stringResource(it.labelRes) },
+                    selectedIndex = CodexStatusFilter.entries.indexOf(uiState.statusFilter),
+                    onSelect = { index ->
+                        onStatusFilterChange(CodexStatusFilter.entries[index])
+                    }
+                )
+            }
+
             item(span = { GridItemSpan(maxLineSpan) }, key = "progress") {
-                CodexProgress(
+                CodexSummaryCard(
                     unlockedCount = uiState.unlockedCount,
                     totalCount = uiState.totalCount,
                     progress = uiState.progress
                 )
             }
 
-            item(span = { GridItemSpan(maxLineSpan) }, key = "controls") {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                    AppTextField(
-                        value = uiState.query,
-                        onValueChange = onQueryChange,
-                        placeholder = stringResource(R.string.codex_search_hint),
-                        leadingIcon = Icons.Outlined.Search
-                    )
+            item(span = { GridItemSpan(maxLineSpan) }, key = "categories") {
+                CodexCategoryCard(
+                    categories = uiState.categoryProgress,
+                    labelOf = presetTexts::categoryOf,
+                    selected = uiState.selectedCategory,
+                    onSelect = onCategoryChange,
+                    totalUnlocked = uiState.unlockedCount,
+                    totalCount = uiState.totalCount,
+                    modifier = Modifier.padding(top = Spacing.lg)
+                )
+            }
 
-                    AppSegmentedControl(
-                        options = CodexStatusFilter.entries.map { stringResource(it.labelRes) },
-                        selectedIndex = CodexStatusFilter.entries.indexOf(uiState.statusFilter),
-                        onSelect = { index ->
-                            onStatusFilterChange(CodexStatusFilter.entries[index])
-                        }
+            // 最近添了什么：只有「随便看看」而且确实有解锁过的时候才占地方
+            if (browsing && uiState.recentUnlocks.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "recent") {
+                    CodexRecentSection(
+                        items = uiState.recentUnlocks,
+                        textOf = textOf,
+                        labelOfCategory = presetTexts::categoryOf,
+                        tierOf = { uiState.tierOf(it) },
+                        onClick = onItemClick,
+                        onViewAll = {
+                            onStatusFilterChange(CodexStatusFilter.UNLOCKED)
+                        },
+                        modifier = Modifier.padding(top = Spacing.xxl)
                     )
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                        contentPadding = PaddingValues(end = Sizes.gutter)
-                    ) {
-                        item(key = "category_all") {
-                            AppChip(
-                                label = stringResource(R.string.codex_count_all, uiState.totalCount),
-                                selected = uiState.selectedCategory == null,
-                                onClick = { onCategoryChange(null) }
-                            )
-                        }
-                        items(items = uiState.categories, key = { it }) { category ->
-                            AppChip(
-                                label = "${presetTexts.categoryOf(category)} ${uiState.countOf(category)}",
-                                selected = uiState.selectedCategory == category,
-                                onClick = { onCategoryChange(category) }
-                            )
-                        }
-                    }
                 }
+            }
+
+            // 稀有度和「最近添了什么」一样是总览：开始按条件找条目时就退场，
+            // 页面上只剩搜索结果本身
+            if (browsing) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "rarity") {
+                    CodexRarityCard(
+                        tiers = uiState.tierProgress,
+                        modifier = Modifier.padding(top = Spacing.xxl)
+                    )
+                }
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }, key = "entries_head") {
+                SectionHeader(
+                    title = stringResource(R.string.codex_section_entries),
+                    subtitle = stringResource(R.string.codex_entries_count, entries.size),
+                    modifier = Modifier.padding(top = Spacing.xxl)
+                )
             }
 
             if (entries.isEmpty()) {
@@ -251,7 +276,10 @@ fun PresetCodexScreen(
                         rate = preset.rate,
                         unlocked = uiState.isCompleted(preset),
                         onClick = { onItemClick(preset) },
-                        modifier = Modifier.appearAnimation()
+                        // 条目之间比板块之间松一点（16 + 8）：一份档案索引，行与行要留得开
+                        modifier = Modifier
+                            .padding(top = Spacing.sm)
+                            .appearAnimation()
                     )
                 }
             }
@@ -425,14 +453,36 @@ private val previewPresets = listOf(
     )
 )
 
+private val previewCategoryProgress = listOf(
+    CategoryProgress(category = "兴趣", unlockedCount = 2, totalCount = 8),
+    CategoryProgress(category = "技能", unlockedCount = 1, totalCount = 7),
+    CategoryProgress(category = "旅行", unlockedCount = 1, totalCount = 10),
+    CategoryProgress(category = "生活", unlockedCount = 0, totalCount = 13)
+)
+
 private val previewCodexState = PresetCodexUiState(
     allItems = previewPresets,
     tierByPresetId = previewPresets.associate { it.id to RarityTier.fromRate(it.rate) },
     categories = listOf("兴趣", "技能", "旅行", "生活"),
+    categoryProgress = previewCategoryProgress,
+    tierProgress = RarityTier.entries.map { tier ->
+        val inTier = previewPresets.filter { RarityTier.fromRate(it.rate) == tier }
+        TierProgress(
+            tier = tier,
+            unlockedCount = inTier.size,
+            totalCount = inTier.size + tier.ordinal + 1
+        )
+    },
+    recentUnlocks = previewPresets.take(2).mapIndexed { index, preset ->
+        CodexRecentUnlock(
+            preset = preset,
+            completedDate = 1_747_008_000_000 - index * 86_400_000L
+        )
+    },
     isLoaded = true
 )
 
-@Preview(showBackground = true, heightDp = 1500, name = "图鉴")
+@Preview(showBackground = true, heightDp = 2400, name = "图鉴")
 @Composable
 private fun PresetCodexPreview() {
     LifeLedgerTheme {

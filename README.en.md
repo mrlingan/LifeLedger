@@ -13,11 +13,11 @@ A **fully offline** Android app for recording personal achievements. No account,
 ![minSdk](https://img.shields.io/badge/minSdk-24-orange)
 ![Offline](https://img.shields.io/badge/Offline-100%25-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Version](https://img.shields.io/badge/Version-1.2.5-1F6FEB)
+![Version](https://img.shields.io/badge/Version-1.5.9-1F6FEB)
 
 > **Rather not build it yourself?** Download the APK from [Releases](https://github.com/mrlingan/LifeLedger/releases/latest) and install it. Android 7.0 and above.
 
-> Current version **v1.2.5** (versionCode 6) · [Changelog](#changelog)
+> Current version **v1.5.9** (versionCode 9) · [Changelog](#changelog)
 
 Built and maintained by **[mrlingan](https://github.com/mrlingan)**.
 
@@ -46,15 +46,26 @@ This project tries something a little different — it treats **what has already
 
 ### 📊 Home · life dashboard
 
-- Greeting, date and a one-line encouragement (your own nickname and signature once you set them), with "add achievement" on the right
-- Once you set a nickname or a photo, your avatar appears in the top-left corner and taps through to your profile
-- **Life progress**: a stage (one stage per 5 completed achievements) with the bar and the percentage side by side, and how many are left to the next stage
-- **Core data**: completed / in progress / total records / days recorded — four figures in one row, label above number, nothing else
-- **Category progress**: how much of each codex category you have collected, five small rings plus a "View all" link into the codex
-- **Recently unlocked**: cards for the latest 3, with a cover (your own photo if there is one, otherwise the first character of the title), title, description and rarity — exact dates are not shown here, only inside the detail screen
-- One closing line — "Recording since X · N days"
-- **Modular sections**: everything below the greeting can be switched off or dragged into a new order under Settings → Home sections (long-press any row to start editing). Three are on by default — **life progress / metrics / category progress** — because "recent unlocks" adds three cards, "recording since" is a single date, and "custom image" needs an image first; turn them on in settings whenever you want them. Hide them all and the home screen offers a shortcut straight back
+- Date, greeting ("Hello, X" once you set a nickname) and a motto, with settings in the top-right corner; the add button lives in the middle of the bottom bar
+- A faint blue glow sits on the top edge of the page (home and growth) — it is what makes the glass cards and bar read as floating
+- **Life progress**: one personal card — avatar, nickname, stage pill (a stage per 5 completed achievements), completion percentage, the bar and how many are left to the next stage; your own signature sits at the bottom of the card
+- **Quick actions**: write / goals / codex / achievements, four tiles that all lead to screens and sheets that already exist
+- **Core data**: completed / in progress / total records / days recorded — four figures in one card, split by hairlines, number above label, nothing else
+- **Category progress**: one overall ring on the left, one row per category on the right (name, unlocked / total, and a bar in that category's own colour), plus a "View all" link into the codex
+- **Recently unlocked**: the latest 3 in a column — cover, title, rarity and completion date per row; tap a row for the detail screen
+- A short closing card, centred: "Recording since X · N days"
+- **Modular sections**: everything below the greeting can be switched off or dragged into a new order under Settings → Home sections (long-press any row to start editing). Four are on by default — **life progress / quick actions / metrics / category progress** — because "recent unlocks" adds three rows, "recording since" is a single date, and "custom image" needs an image first. Hide them all and the home screen offers a shortcut straight back; on upgrade from an older version the quick-actions row is added to your layout once
 - The home screen is overview only — **no achievement list on it**, so it never grows longer as you record more
+
+### 👤 Me · your own record
+
+- The header is your avatar, nickname, signature and a stage pill: tap it for your profile, or use the gear for settings
+- **Four figures at a glance**: records / completed / codex unlocked / current streak
+- **Life progress**: stage, completion percentage and the bar. These numbers come from the same code the home screen uses (`ui/LifeStats.kt`), so the two screens can never disagree
+- **Codex collection**: one ring per rarity tier, the unlocked count inside it and the tier's total underneath
+- **My life**: days recorded / notes / media, next to the "recording since X · N days" line
+- **Shortcuts**: all achievements / codex / growth / XP store (two rows of two)
+- **Settings shortcuts**: profile / reminders / backup & restore / all settings
 
 ### 🏆 Achievements · kept apart from the home screen
 
@@ -69,11 +80,19 @@ This project tries something a little different — it treats **what has already
 
 - 109 preset achievements across 14 categories: growth, life, travel, study, love, entertainment, social, hobbies, skills, career, family, newbie village, health, finance
 - Five rarity tiers — bronze / silver / gold / platinum / legendary — derived from how rare each achievement is
+- **The whole collection on one screen**: the header keeps a search pill, then come collection progress (a ring, the unlocked count and a motto), the category atlas (each tile says how much of that category you have; tap one to filter; the rest fold into "More"), recently unlocked (the last four, with cover, category tag and date) and the rarity atlas (what each tier holds)
 - **An archive index**: the emblem on the left, the name on the first line beside it, the description under the name, then the rarity — one column on a phone, two on wider screens. Locked entries also show the achievement rate; completion dates show up only in the detail screen
-- **Three ways to narrow it down**: keyword search, all / unlocked / locked, and category
+- **Three ways to narrow it down**: a keyword search (tap the pill to open it — it costs no line until you do), the all / unlocked / locked underline tabs, and a category. Filter by any of them and the two overview sections step aside, leaving only the results
 - Unlocked entries use a rarity-tinted emblem and primary text; locked ones keep their name, description and rarity but sit a step lower in contrast — no padlocks, no question marks
 - "Pick from the codex" prefills title, description and icon on the new-achievement screen
 - **The codex shares one source of truth with the rest of the app**: undo a completion anywhere and the codex goes back to locked
+
+### 💰 Growth and the XP store
+
+- **Growth**: a stage card (the Lv. and "stage N / 5" figures shared with home, My and the store, with your XP balance and its bar underneath), a life curve (7 / 30 / 90 days / all time, XP accumulated per day) with today / this week / this month deltas, **life attributes** (finished experiences grow one tile per category, each with a level, a bar and what this level has banked), a **growth log** (the last few entries of the ledger — earned and spent alike, with achievement titles in the current language), long-term goals with daily tasks (finishing a task earns XP, and a goal closes itself once every task under it is done), a daily saying (optional network access, off by default, fetched once a day), and the way into the XP store
+- **XP store**: rewards laid out two per row and grouped by category, redeemed with XP. Six built-ins to start from (a coffee for 100 XP up to a computer for 10,000 XP) — delete them, or add your own (name / icon / category / description / price). Categories are the fixed life / fun / travel / study / gear set, with any you invent lined up after them
+- **One ledger, not two**: redeeming writes a negative entry into the XP ledger and the balance is always the sum of that ledger, so the growth curve, the store balance and the numbers after an undo can never disagree
+- **My rewards**: everything you redeemed, what it cost, and an **undo** — undoing writes a positive entry back rather than editing the old one, so a mistaken redemption is not a support ticket
 
 ### 📝 Notebook and media
 
@@ -91,13 +110,14 @@ This project tries something a little different — it treats **what has already
 
 ### ⚙️ Settings
 
+- **The page itself**: a large title with a one-line subtitle (same header as Home and Growth), then your profile card (avatar / nickname / stage / signature — tap to open your profile) and groups of cards by purpose; every row starts with a soft-coloured square holding a single-line glyph (★ ✦ ✾ ◍ ♢ — geometric, arrow and enclosed-letter shapes rather than colour emoji), and the gear in the top right opens **Quick settings**: light/dark mode and Liquid Glass, applied instantly
 - **Achievements**: the default icon for new achievements (a built-in emoji, or **your own uploaded image**), a confirmation step before completing, favourite categories (they sort first on the home screen and in the list)
 - **Theme**: follow system / light / dark
+- **Global background image**: pick a photo to sit beneath every screen, with an adjustable strength; the image is copied into app-private storage (`files/background/`), so deleting the original from your gallery changes nothing
 - **Liquid glass**: one switch (on by default) for whether cards and the bottom bar refract what is behind them; the settings sub-pages, segmented controls, buttons and selected chips use the same material; turn it off for flat surfaces (a handy battery switch too)
 - **Language**: follow system / 简体中文 / English
 - **Home sections**: one list, and its order is the home screen's order. **Long-press any row to start editing** — a ⊖ / ⊕ appears on the left (hide / put back) and a ≡ drag handle on the right. Changes apply immediately, there is nothing to save
-- **Category colours**: tucked under the "Core data" row — tap it to expand — give each codex category its own ring colour (the five rings in the home screen's category progress); anything you leave alone follows the theme accent. Display only
-- **Categories of your own**: when creating or editing an achievement you can give it a category — or make a new one on the spot — and the home screen's category progress has switches for which five it shows (five at most)
+- **Categories of your own**: when creating or editing an achievement you can give it a category — or make a new one on the spot; the home screen's category progress shows five at most, favourites first
 - **Custom image**: put a picture of your own on the home screen, cropped by dragging and pinching as you upload; the card is 72dp tall, less than half of the life-progress card. **With no image it never shows, even if the switch is on**
 - **Display**: list density (compact / standard / comfy) and font scale
 - **Animation**: full / reduced / off
@@ -113,8 +133,8 @@ This project tries something a little different — it treats **what has already
 
 - A complete custom design system (colour / type / spacing / radius / motion)
 - **No default-looking Material components**: cards, buttons, text fields, dialogs, switches and filters are all hand-built
-- **Bottom navigation**: home / achievements / codex / settings plus a centre "record achievement" action. The bar itself is a slab of **liquid glass** — a single-pass AGSL shader refracts the page behind it along a rounded-rect SDF, with edge dispersion and a rim highlight, so content slides under the glass. The selection indicator is a **glass droplet** that slides, stretches and settles, and can be dragged and snapped onto the nearest tab. Hidden automatically on secondary screens (detail, new achievement, backup)
-- **The home and settings sections are liquid glass too**: the life progress / metrics / category progress / recent-unlock cards, the settings groups, and every settings sub-page (achievements, home sections, backup, reminder, data security) go through the same refraction pipeline, sampling the background layer (wallpaper + veil) so their edges bend the picture the way the bar does; with no wallpaper set there is nothing to bend, and the cards stay a milky slab with a sheen and a rim
+- **Bottom navigation**: home / codex / growth / me plus a centre "record achievement" action. The bar itself is a slab of **liquid glass** — a single-pass AGSL shader refracts the page behind it along a rounded-rect SDF, with edge dispersion and a rim highlight, so content slides under the glass. The selection indicator is a **glass droplet** that slides, stretches and settles, and can be dragged and snapped onto the nearest tab. Hidden automatically on secondary screens (detail, new achievement, backup)
+- **The home and settings sections are liquid glass too**: the life progress / quick actions / metrics / category progress / recent-unlock / closing cards, the settings groups, and every settings sub-page (achievements, home sections, backup, reminder, data security) go through the same refraction pipeline, sampling the background layer (wallpaper + veil) so their edges bend the picture the way the bar does; with no wallpaper set there is nothing to bend, and the cards stay a milky slab with a sheen and a rim
 - **Buttons, segmented controls, selected chips and the numeric keypad on the lock screen and in dialogs share that material**: the accent buttons are tinted glass with an accent label rather than a solid blue slab, and where there is nothing to sample (dialogs live in their own window, the lock screen is opaque by design) it falls back to a frosted slab with the sheen and the rim
 - **Segmented controls move like the bottom bar**: the selected glass pill slides from the old option to the new one, stretching as it goes and settling back, and you can press and drag it straight onto the option you want; the labels sit above the pill so they stay crisp the whole way, and there is no ripple — the pill itself is the feedback
 - **The app password is typed on an in-app numeric keypad**: nothing about it depends on the system IME (no candidate bar, no suggestions, no keyboard height to fight), and setting or changing it is three steps — current password → new password → type it again — one question at a time
@@ -125,13 +145,15 @@ This project tries something a little different — it treats **what has already
 
 ## Screenshots
 
-| Home | All achievements | Achievement detail |
+| Home | Me | Growth |
 |:---:|:---:|:---:|
-| ![Home](docs/screenshots/en/home.png) | ![All achievements](docs/screenshots/en/all-achievements.png) | ![Achievement detail](docs/screenshots/en/detail.png) |
-| Achievement codex | Settings | Dark mode |
-| ![Codex](docs/screenshots/en/codex.png) | ![Settings](docs/screenshots/en/settings.png) | ![Dark mode](docs/screenshots/en/home-dark.png) |
+| ![Home](docs/screenshots/en/home.png) | ![Me](docs/screenshots/en/my.png) | ![Growth](docs/screenshots/en/growth.png) |
+| Codex | XP store | All achievements |
+| ![Codex](docs/screenshots/en/codex.png) | ![XP store](docs/screenshots/en/store.png) | ![All achievements](docs/screenshots/en/all-achievements.png) |
+| Achievement detail | Settings | Dark mode |
+| ![Achievement detail](docs/screenshots/en/detail.png) | ![Settings](docs/screenshots/en/settings.png) | ![Dark mode](docs/screenshots/en/home-dark.png) |
 
-> Screenshots are taken from a real device. Chinese screenshots are in [README.md](README.md).
+> Screenshots come from the app as it actually runs (1080×2400, scaled down). Chinese screenshots are in [README.md](README.md).
 
 The data in those screenshots was not tapped in by hand: **Settings → Developer options →
 Generate demo data** writes 26 achievements (22 from the codex, 4 written by hand),
@@ -154,7 +176,7 @@ for the next round.
 | Language | Kotlin 2.2.10 |
 | UI | Jetpack Compose (Material 3 only as a host for a few components) |
 | Architecture | MVVM + Repository |
-| Local storage | Room 2.7.2 (database version 4, with 1→2→3→4 migrations) |
+| Local storage | Room 2.7.2 (database version 7, with 1→2→…→7 migrations) |
 | Navigation | Navigation Compose 2.8.9 |
 | Async | Coroutines + Flow |
 | Images | System photo picker (no storage permission needed) |
@@ -206,8 +228,8 @@ Every release ships two packages:
 
 | Package | What it is |
 | --- | --- |
-| `LifeLedger-v1.2.5.apk` | The signed release build — the one to install |
-| `LifeLedger-v1.2.5-debug.apk` | Debug build, with an extra "Settings → Developer options" group (generate demo data / clear achievement data) for reproducing the UI and retaking screenshots |
+| `LifeLedger-v1.5.9.apk` | The signed release build — the one to install |
+| `LifeLedger-v1.5.9-debug.apk` | Debug build, with an extra "Settings → Developer options" group (generate demo data / clear achievement data) for reproducing the UI and retaking screenshots |
 
 > Both are signed with APK Signature Scheme v2, which covers `minSdk 24` (Android 7.0) and above. The SHA-256 for verification is in each release's notes.
 
@@ -251,16 +273,20 @@ app/src/main/
 │   │   ├── preset/        preset achievement seeder
 │   │   ├── profile/       private copy of the avatar + built-in avatar ids
 │   │   ├── reminder/      daily reminder (system alarm + notification + boot reschedule)
+│   │   ├── reward/        built-in reward catalogue (seeded on the first store visit)
 │   │   ├── repository/    repository layer and single entry point
 │   │   └── settings/      app settings (SharedPreferences)
 │   └── ui/
 │       ├── components/    shared UI components (liquidglass/ = liquid glass; built-in avatars are drawn in PresetAvatar.kt)
-│       ├── home/          home sections (greeting, life progress, metrics, categories, recent)
-│       ├── codex/         codex entry and progress sections
+│       ├── home/          home sections (greeting, life progress, quick actions, metrics, categories, recent, closing)
+│       ├── codex/         codex header, collection progress, category tiles, recent unlocks, rarity and entry card
 │       ├── demo/          demo data generator + the gate that decides who sees it
+│       ├── reward/        XP store (reward cards, my-rewards sheet, custom reward editor)
 │       ├── theme/         design system
 │       ├── AchievementNavHost.kt    navigation, theme, app lock
 │       ├── HomeScreen.kt / HomeViewModel.kt        home overview (no list)
+│       ├── MyScreen.kt / MyViewModel.kt            me (header / figures / codex collection / volumes / shortcuts)
+│       ├── LifeStats.kt            stats shared by the home and me screens (stage, streak, codex unlocks)
 │       ├── OnboardingScreen.kt      first launch: where to start
 │       ├── AllAchievementsScreen.kt / AchievementListViewModel.kt   achievement list
 │       ├── AchievementRow.kt        list row (the only implementation of that look)
@@ -270,6 +296,7 @@ app/src/main/
 │       ├── PresetAchievementScreen.kt / ViewModel
 │       ├── ProfileScreen.kt / ProfileViewModel.kt        profile
 │       ├── AchievementSettingsScreen.kt / ViewModel      achievement settings
+│       ├── GrowthScreen.kt          growth (XP curve, long-term goals, daily saying) and the store entry
 │       ├── HomeLayoutScreen.kt / HomeLayoutViewModel.kt  home section toggles and ordering
 │       ├── ReminderScreen.kt / ReminderViewModel.kt      daily reminder
 │       ├── DataSecurityScreen.kt / DataSecurityViewModel.kt   data security
@@ -300,7 +327,7 @@ docs/screenshots/         UI screenshots for the README (zh/ and en/ sets)
 | Achievements, notes, media records, codex progress | Room database (app-private storage) |
 | Achievement titles / descriptions and note text | Ciphertext on disk once you turn on local encryption; the key lives in the system keystore and never travels with the database file |
 | Images, videos, live photo copies | `files/media/` |
-| Avatar copy | `files/profile/` |
+| Avatar / custom icon / home image / background image copies | `files/profile/`, `files/icons/`, `files/home/`, `files/background/` |
 | Theme, app lock and other preferences | SharedPreferences |
 
 There are only two permissions, and both serve the daily reminder: `POST_NOTIFICATIONS` (asked for only when you turn the reminder on) and `RECEIVE_BOOT_COMPLETED` (reschedules the alarm after a reboot). No network permission.
@@ -344,6 +371,59 @@ The script reads `source.tsv` (Chinese source) and `en.json` (English translatio
 ---
 
 ## Changelog
+
+### v1.5.9 · versionCode 9
+
+The database moves from v5 to v7 (two **purely additive** migrations — **install straight over the old one and nothing you recorded is touched**). This round adds two pages (**Me**, and **Growth** with the XP store), rearranges the home screen and the codex, adds a global background image, and fixes the store staying in Chinese after a language switch.
+
+**Home**
+
+- New layout: date + greeting + motto, settings in the top-right corner, and the record action moved to the centre of the bottom bar; a faint blue glow sits at the top of the page (home and growth) so the glass cards have something to float on
+- **Life progress** is now a personal card: avatar, nickname, stage badge, completion percentage, progress bar and "N more to the next stage" — with your own bio pressed along the bottom
+- New **quick actions**: Write / Goals / Codex / Achievements, each one landing on a page or sheet that already exists
+- **Core data** is a single card: completed / in progress / total records / streak, figures above their labels, split by hairline rules
+- **Category progress** is now a total ring on the left and one row per category on the right (name, unlocked / total, and a bar in that category's own colour)
+- **Recent unlocks** became three rows: cover, name, rarity and completion date
+- A short closing card centred on "Recording since X · N days in"
+- Four sections show by default — **life progress / quick actions / core data / category progress**; upgrading from an older build adds quick actions back into your layout once
+
+**Me (new)**
+
+- Header of avatar + nickname + bio + stage badge: tap the block for your profile, the gear on the right goes to settings
+- One-line overview: total records / completed / codex unlocked / streak
+- Life progress: stage, completion percentage and progress bar — the same numbers as the home screen, produced by the same code (`ui/LifeStats.kt`), so the two pages can never disagree
+- Codex collection: one ring per rarity tier with the unlocked count inside and "N total" underneath
+- My life: days recorded / notes / photos · videos, plus "Recording since X · N days in"
+- Quick actions: all achievements / codex / growth / XP store, then profile / reminder / backup & restore / all settings
+
+**Growth and the XP store (new)**
+
+- **Growth**: a stage card (level and "stage N / 5", with your XP and progress bar under it), the life curve (7d / 30d / 90d / all, cumulative XP per day), today / this week / this month deltas, **life attributes** (finished experiences grow into one tile per category: level, progress, XP in that level), the growth log (the last few entries, earned and spent), long-term goals and daily tasks (finishing a task pays XP; a goal closes itself once its tasks are done), the daily saying (optional network, off by default, one per day) and the store entry
+- **XP store**: rewards laid out two to a row by category, bought with XP. Six starters are built in (a coffee at 100 XP up to a new computer at 10,000 XP); you can delete them and add your own (name / icon / category / description / price). Categories are fixed — life / fun / travel / study / gear — and your own ones follow
+- **My rewards**: what you bought and what it cost, with **undo** — an undo writes a positive entry back rather than painting over the original
+- **One ledger only**: redeeming writes a negative entry into the XP ledger and the balance is always the sum of that ledger, so the growth curve, the store balance and the number after an undo always agree
+- Fixed "the store is still in Chinese after switching languages": the six built-in rewards have their titles and descriptions **stored in the database**, and they used to be written once, in the language of your first visit, never to change again. Entering the store (or switching languages while you are in it) now compares them and rewrites only the built-in rows; rewards you wrote yourself, and redemptions you already made, are never touched
+
+**Codex**
+
+- **The whole collection on one page**: a search pill tucked into the header, then collection progress (ring, how many of the 109 are unlocked, and a line of copy), the category index (each tile says how many of that category you have; tap one to filter, the rest fold into "more categories"), latest unlocks (the four most recent, with cover, category tag and date) and rarity (how many of each tier)
+- Entries keep the **archive-index layout** (emblem on the left, name, description and rarity stacked beside it); locked ones show their drop rate
+- **Three ways to narrow**: keyword search (the pill expands), the all / unlocked / locked underline tabs, and category — as soon as you filter by any of them the two overview blocks step aside and only results remain
+
+**Settings**
+
+- The page itself is rebuilt: big title plus a one-line header (shared with home and growth), a profile card (avatar / nickname / stage / bio, tap it for your profile) and cards grouped by purpose; every row now leads with a single-line glyph in a soft tile (★ ✦ ✾ ◍ ♢ — geometric and arrow shapes, not colour emoji), and the gear in the top-right opens **quick settings** — light/dark and liquid glass, applied the moment you change them
+- New **global background image**: pick a photo and it sits beneath every screen, with an intensity slider; the file is copied into the app's private storage (`files/background/`), so deleting the original from your gallery changes nothing
+- The "Category colours" entry (Settings → Home sections) is gone. The switches for which five categories show on the home screen, and the "new category" row, lived inside it — they went with it. You can still make a new category on the spot while creating or editing an achievement, and the home screen's category progress falls back to "favourites first, then whatever has progress" for its five slots
+- Colours you picked before still apply as before (the preference and the copies inside your backups are untouched) — there is just no longer an entry for picking them one by one
+
+**Permissions and network**
+
+- The manifest now asks for `INTERNET`, but it stays off by default: only after you turn on "Developer options → Enable network features" will the growth page fetch its daily saying. Everything else remains completely offline
+
+**Also**
+
+- Four new unit tests: `LifeStageTest`, `GrowthAttributesTest`, `ProfileDetailsTest`, `RewardCatalogTest`
 
 ### v1.2.5 · versionCode 6
 
@@ -413,6 +493,7 @@ The database moves from v4 to v5, with a migration — **install straight over t
 - [x] Display and animation intensity settings
 - [x] Freely customisable home sections (toggle and reorder, right in settings)
 - [x] Profile (nickname, avatar, signature)
+- [x] **Me** screen: header (profile + stage), four figures, life progress, codex collection by rarity, data volumes, shortcuts and settings entries
 
 ---
 

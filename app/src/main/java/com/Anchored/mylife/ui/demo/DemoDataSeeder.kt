@@ -11,9 +11,12 @@ import android.graphics.Typeface
 import com.Anchored.mylife.R
 import com.Anchored.mylife.data.database.PresetAchievement
 import com.Anchored.mylife.data.media.MediaFileStore
+import com.Anchored.mylife.data.profile.Gender
+import com.Anchored.mylife.data.profile.MbtiType
 import com.Anchored.mylife.data.repository.MediaRepository
 import com.Anchored.mylife.data.repository.RepositoryProvider
 import com.Anchored.mylife.data.settings.HomeSection
+import com.Anchored.mylife.data.settings.HomeSectionEntry
 import com.Anchored.mylife.ui.PresetTextResolver
 import com.Anchored.mylife.ui.theme.RarityTier
 import kotlinx.coroutines.Dispatchers
@@ -156,7 +159,9 @@ object DemoDataSeeder {
             // 首页板块可能被用户关掉过几段，截图要的是完整首页
             // 演示数据要的是"首页每一段都拍得到"，所以这里显式全开，
             // 而不是用 DEFAULT_ORDER——它现在是三段（最近解锁 / 记录起点默认关）
-            repositories.settings.setHomeSections(HomeSection.entries.toList())
+            repositories.settings.setHomeSections(
+                HomeSection.entries.map { HomeSectionEntry.primary(it) }
+            )
 
             Summary(achievements = entries.size, completed = completed)
         }
@@ -174,13 +179,20 @@ object DemoDataSeeder {
             repositories.profileImageStore.clear()
             repositories.iconImageStore.clear()
             repositories.homeImageStore.clear()
-            repositories.settings.setHomeImagePath(null)
+            // 配图表也要清干净：文件删了、路径还留着的话，
+            // 下次加回自定义图片会指向一张不存在的图
+            repositories.settings.homeSectionImages.value.keys.toList().forEach { id ->
+                repositories.settings.setHomeSectionImage(id, null)
+            }
             repositories.settings.setProfile(
                 nickname = "",
                 signature = "",
                 avatarPath = null,
                 avatarPreset = null
             )
+            // 基础信息也一起清掉：演示数据留下的性别 / MBTI 不该在"清空数据"之后还挂着
+            repositories.settings.setGender(null)
+            repositories.settings.setMbti(null)
             repositories.settings.setFavoriteCategories(emptySet())
         }
 
@@ -341,7 +353,7 @@ object DemoDataSeeder {
         return options[random.nextInt(options.size)]
     }
 
-    /** 个人资料：昵称、签名、还有一张画出来的头像 */
+    /** 个人资料：昵称、签名、一张画出来的头像，以及「基础信息」里的两项 */
     private fun writeProfile(
         context: Context,
         repositories: RepositoryProvider,
@@ -362,6 +374,10 @@ object DemoDataSeeder {
             // 演示数据画的就是一张图，所以内置头像那一栏留空
             avatarPreset = null
         )
+        // 性别与 MBTI 是死的两个值，不跟着 random 走：演示数据每次生成都该是一个样子，
+        // 截图和试用才比对得上
+        repositories.settings.setGender(Gender.FEMALE)
+        repositories.settings.setMbti(MbtiType.INFP)
     }
 
     /**

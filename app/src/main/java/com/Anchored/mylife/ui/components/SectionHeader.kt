@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Sizes
@@ -57,6 +58,69 @@ fun SectionHeader(
         if (action != null) {
             Spacer(modifier = Modifier.width(Spacing.sm))
             action()
+        }
+    }
+}
+
+/**
+ * 卡片里的分区标题：行首一枚符号方块 + 标题，行尾挂一句补充说明。
+ *
+ * 和 [SectionHeader] 是两种用法，不要互换：那个是"页面上的一段"（标题自带标题字重，
+ * 挂在卡片外面），这个是"卡片里的一段"——它通常就是一张分组卡的第一行，
+ * 下面紧跟着 [AppSettingRow]。
+ *
+ * 行首的方块复用设置行的 [SettingMark]（软色底 + 符号），行尾的说明用次要文字色：
+ * 一行里最重的永远是"这一段叫什么"，说明和值都只是补充。
+ *
+ * @param glyph 行首方块里的符号，见 [AppSettingRow] 里对符号的说明；
+ *   传 null 表示只要标题
+ * @param hint 行尾的补充说明（例如"完善信息，解锁更多功能"）。
+ *   放不下时省略号收尾——它是补充，不能把标题挤断
+ */
+@Composable
+fun AppSectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    glyph: String? = null,
+    hint: String? = null
+) {
+    val colors = AppTheme.colors
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (glyph != null) {
+            SettingMark(background = colors.accentSoft) {
+                Text(
+                    text = glyph,
+                    style = AppTheme.type.glyph,
+                    color = colors.accentStrong
+                )
+            }
+            Spacer(modifier = Modifier.width(Spacing.md))
+        }
+
+        Text(
+            text = title,
+            style = AppTheme.type.h3,
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+
+        if (hint != null) {
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Text(
+                text = hint,
+                style = AppTheme.type.bodySmall,
+                color = colors.textTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

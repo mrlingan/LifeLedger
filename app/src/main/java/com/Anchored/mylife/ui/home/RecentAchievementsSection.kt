@@ -1,25 +1,23 @@
 package com.Anchored.mylife.ui.home
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,22 +28,29 @@ import com.Anchored.mylife.R
 import com.Anchored.mylife.ui.RecentAchievement
 import com.Anchored.mylife.ui.components.AppCard
 import com.Anchored.mylife.ui.components.AppCardTone
+import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppTextLink
 import com.Anchored.mylife.ui.components.RarityBadge
 import com.Anchored.mylife.ui.components.SectionHeader
-import com.Anchored.mylife.ui.components.appearAnimation
 import com.Anchored.mylife.ui.components.firstGlyph
 import com.Anchored.mylife.ui.rememberMediaThumbnail
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * 最近解锁：三张卡片横排。
+ * 最近解锁：一张卡里三行，每行 封面 + 标题 + 完成日期。
+ *
+ * 原来是三张横滑卡片（封面 + 标题 + 描述 + 稀有度）。改成竖排的行之后，
+ * 三条记录一眼扫得完，不用左右滑；首页本来就是"往下看"的页面，
+ * 只有一横行内容需要横滑的话，那条内容基本等于没人看。
  *
  * 卡片带封面——用户当时给这条成就配过图就显示那张图，没有就用标题首字占位。
- * 阅读顺序是 封面 → 名称 → 描述 → 时间 → 稀有度，不做手游式徽章堆叠。
+ * 描述不在这里出现：一行只讲一件事，点进详情再看。
  */
 @Composable
 internal fun RecentAchievementsSection(
@@ -54,10 +59,12 @@ internal fun RecentAchievementsSection(
     onViewAll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
+    AppCard(
+        modifier = modifier.padding(horizontal = Sizes.gutter),
+        tone = AppCardTone.Glass
+    ) {
         SectionHeader(
             title = stringResource(R.string.home_recent),
-            modifier = Modifier.padding(start = Sizes.gutter, end = Spacing.xs),
             action = {
                 AppTextLink(
                     text = stringResource(R.string.home_view_all),
@@ -72,30 +79,23 @@ internal fun RecentAchievementsSection(
             Text(
                 text = stringResource(R.string.home_recent_empty),
                 style = AppTheme.type.bodySmall,
-                color = AppTheme.colors.textTertiary,
-                modifier = Modifier.padding(horizontal = Sizes.gutter)
+                color = AppTheme.colors.textTertiary
             )
         } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = Sizes.gutter),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                items(items = items, key = { it.achievement.id }) { item ->
-                    RecentAchievementCard(
-                        item = item,
-                        onClick = { onClick(item.achievement.id) },
-                        modifier = Modifier
-                            .width(Sizes.recentCard)
-                            .appearAnimation()
-                    )
-                }
+            items.forEachIndexed { index, item ->
+                if (index > 0) AppDivider()
+
+                RecentRow(
+                    item = item,
+                    onClick = { onClick(item.achievement.id) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun RecentAchievementCard(
+private fun RecentRow(
     item: RecentAchievement,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -104,20 +104,23 @@ private fun RecentAchievementCard(
     val achievement = item.achievement
     val shape = RoundedCornerShape(Radius.md)
 
-    AppCard(
-        modifier = modifier,
-        tone = AppCardTone.Glass,
-        onClick = onClick,
-        contentPadding = PaddingValues(Spacing.sm)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            // 圆角在外、点击在水波纹以内：按下去的高亮不会溢出到卡片边角
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .padding(vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(2.2f)
+                .size(
+                    width = Sizes.homeThumbWidth,
+                    height = Sizes.homeThumbHeight
+                )
                 .clip(shape)
-                // 半透明：没配图的占位块也别把玻璃底挡死
-                .background(colors.surfaceSunken.copy(alpha = 0.55f))
-                .border(Sizes.hairline, colors.border, shape),
+                .background(colors.surfaceSunken),
             contentAlignment = Alignment.Center
         ) {
             val thumbnail = item.photoPath?.let { path ->
@@ -140,31 +143,48 @@ private fun RecentAchievementCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(Spacing.md))
+        Spacer(modifier = Modifier.width(Spacing.md))
 
-        Text(
-            text = achievement.title,
-            style = AppTheme.type.bodyLarge,
-            color = colors.textPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = achievement.title,
+                    style = AppTheme.type.bodyLarge,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
 
-        if (achievement.description.isNotBlank()) {
-            Spacer(modifier = Modifier.height(Spacing.xxs))
+                // 稀有度跟在标题后面（自己写的那条没有档位，就什么都不挂）
+                if (item.tier != null) {
+                    Spacer(modifier = Modifier.width(Spacing.sm))
+                    RarityBadge(tier = item.tier)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.xs))
+
             Text(
-                text = achievement.description,
-                style = AppTheme.type.bodySmall,
-                color = colors.textSecondary,
+                text = stringResource(
+                    R.string.home_meta_completed,
+                    rememberCompletedDate(achievement.completedDate ?: achievement.createdDate)
+                ),
+                style = AppTheme.type.caption,
+                color = colors.textTertiary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
 
-        // 时间不在这里露面：卡片只负责"我完成了什么"，具体日期进详情看
-        if (item.tier != null) {
-            Spacer(modifier = Modifier.height(Spacing.sm))
-            RarityBadge(tier = item.tier)
-        }
+/** 完成日期按系统语言格式化：中文是「2026年9月14日」，英文是「Sep 14, 2026」 */
+@Composable
+private fun rememberCompletedDate(millis: Long): String {
+    val locale = Locale.getDefault()
+    return remember(millis, locale) {
+        val pattern = DateFormat.getBestDateTimePattern(locale, "yMMMd")
+        SimpleDateFormat(pattern, locale).format(Date(millis))
     }
 }

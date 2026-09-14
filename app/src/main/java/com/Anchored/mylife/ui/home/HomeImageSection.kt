@@ -3,9 +3,9 @@ package com.Anchored.mylife.ui.home
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -21,14 +21,13 @@ import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
 
 /**
- * 首页的自定义图片：一条窄卡片。
+ * 首页的自定义图片：整张图，按它自己的比例显示。
  *
- * 高度只有人生进度那张卡的一半不到（[Sizes.homeBanner]），位置由用户在
- * 「设置 → 首页板块」里决定。**没有图片就什么都不画**——开关开着也一样：
- * 一个空框比没有这一段更难看，用户也说不清自己看到的是什么。
+ * 尺寸由图片自己决定：宽度铺满卡片，高度按原图比例算出来——**不裁、不拉伸、不留白边**。
+ * 位置（排在第几段）由用户在「设置 → 首页板块」里决定。
  *
- * 图片是按卡片比例裁剪过的（见 ImageCropDialog），这里再 Crop 一次只是兜底：
- * 万一比例对不上，也是"裁掉一点"，不会被拉变形。
+ * 早先是"固定高度 + 上传时裁剪"，结果传上来的图总有一部分看不到；现在看到的就是
+ * 传进来那张图的全部。**没有图就什么都不画**——开关开着也一样：一个空框比没有这一段更难看。
  */
 @Composable
 internal fun HomeImageSection(
@@ -37,7 +36,9 @@ internal fun HomeImageSection(
 ) {
     if (path.isNullOrBlank()) return
 
-    val thumbnail = rememberMediaThumbnail(path = path, isVideo = false, sizePx = 1200)
+    val thumbnail = rememberMediaThumbnail(path = path, isVideo = false, sizePx = 1200) ?: return
+    val aspect = thumbnail.width.toFloat() / thumbnail.height.toFloat()
+    if (aspect <= 0f) return
 
     AppCard(
         modifier = modifier.padding(horizontal = Sizes.gutter),
@@ -47,18 +48,16 @@ internal fun HomeImageSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(Sizes.homeBanner)
+                .aspectRatio(aspect)
                 .clip(RoundedCornerShape(Radius.lg)),
             contentAlignment = Alignment.Center
         ) {
-            if (thumbnail != null) {
-                Image(
-                    bitmap = thumbnail,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            Image(
+                bitmap = thumbnail,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

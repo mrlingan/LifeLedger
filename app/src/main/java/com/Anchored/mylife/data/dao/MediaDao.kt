@@ -66,6 +66,10 @@ interface MediaDao {
     @Query("SELECT COUNT(*) FROM media")
     suspend fun countMedia(): Int
 
+    /** 「我的」页的数据量：图片 / 视频总数，增删自动刷新 */
+    @Query("SELECT COUNT(*) FROM media")
+    fun observeMediaCount(): Flow<Int>
+
     @Query("DELETE FROM media WHERE noteId = :noteId")
     suspend fun deleteMediaByNoteId(noteId: Long)
 

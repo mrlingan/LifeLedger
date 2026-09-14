@@ -11,18 +11,14 @@ import com.Anchored.mylife.data.database.PresetAchievement
 import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.data.repository.RepositoryProvider
 import com.Anchored.mylife.data.settings.HomeSection
+import com.Anchored.mylife.data.settings.HomeSectionEntry
 import com.Anchored.mylife.ui.theme.RarityTier
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import java.util.Calendar
 
-private const val DAY_MILLIS = 24L * 60L * 60L * 1000L
 private const val RECENT_LIMIT = 3
-
-/** 每完成这么多条成就，向上一个阶段 */
-private const val LEVEL_STEP = 5
 
 /** 图鉴某个分类的收集进度 */
 data class CategoryProgress(
@@ -97,18 +93,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
      * 单独一条流，不并进 [uiState]：板块顺序和统计数据没有关系，
      * 改顺序不该让整页统计重算一遍。
      */
-    val homeSections: StateFlow<List<HomeSection>> = settings.homeSections
+    val homeSections: StateFlow<List<HomeSectionEntry>> = settings.homeSections
 
     /**
-     * 分类圆环的颜色（用户在「设置 → 首页板块」里挑的）。
+     * 分类圆环的颜色（历史偏好：挑过颜色的分类沿用当时那个色）。
      *
      * 和板块顺序一样单独一条流：颜色只影响那一行圆环怎么画，
      * 变更时没有任何统计需要重算。
      */
     val categoryColors: StateFlow<Map<String, String>> = settings.categoryColors
 
-    /** 首页自定义图片的路径；没上传过就是 null（那一段就不显示） */
-    val homeImagePath: StateFlow<String?> = settings.homeImagePath
+    /** 首页各份自定义图片的配图：板块实例 id → 绝对路径；没配图的那份不在表里 */
+    val homeSectionImages: StateFlow<Map<String, String>> = settings.homeSectionImages
+
 
     /** 个人资料打包成一个流：combine 直接接的上限是 5 个 */
     private val profile = combine(
@@ -179,13 +176,13 @@ private fun buildHomeState(
     }
 
     // 图鉴的「已达成」= 存在一条 presetId 相同、且已完成的成就（和图鉴页同一套判定）
-    val unlockedPresetIds = completed.mapNotNull { it.presetId }.toSet()
+    val unlockedIds = unlockedPresetIds(achievements)
 
     // 分类进度：图鉴的分类按"图鉴条目"统计；用户自己写、又挑了分类的成就，
     // 按"自己的完成情况"补上——自建分类因此也能出现在首页那一行里
     val statsByCategory = LinkedHashMap<String, Pair<Int, Int>>() // 分类 -> (已完成, 总数)
     presets.groupBy { it.category }.forEach { (category, items) ->
-        statsByCategory[category] = items.count { it.id in unlockedPresetIds } to items.size
+        statsByCategory[category] = items.count { it.id in unlockedIds } to items.size
     }
     achievements
         .filter { it.presetId == null && it.category.isNotBlank() }
@@ -214,8 +211,8 @@ private fun buildHomeState(
                 .thenBy { it.category }
         )
 
-    // 用户在「设置 → 首页板块」里挑过的话，按他挑的顺序排在最前面；
-    // 没挑过就还是上面那套自动排序（首页取前五个）
+    // 偏好里存着挑过的顺序（老版本挑的、或者从备份恢复来的）就按它排在最前面；
+    // 没有就还是上面那套自动排序（首页取前五个）
     val categories = if (chosenCategories.isEmpty()) {
         sortedCategories
     } else {
@@ -239,7 +236,6 @@ private fun buildHomeState(
             )
         }
 
-    val today = startOfDay(System.currentTimeMillis())
     val firstRecordDate = achievements.minOfOrNull { it.createdDate }
 
     return HomeUiState(
@@ -252,15 +248,11 @@ private fun buildHomeState(
         } else {
             completed.size.toFloat() / achievements.size
         },
-        level = 1 + completed.size / LEVEL_STEP,
-        toNextLevel = LEVEL_STEP - completed.size % LEVEL_STEP,
+        level = levelOf(completed.size),
+        toNextLevel = toNextLevelCount(completed.size),
         streakDays = calculateStreak(achievements),
-        recordedDays = completed
-            .mapNotNull { it.completedDate }
-            .map { startOfDay(it) }
-            .toHashSet()
-            .size,
-        codexUnlocked = unlockedPresetIds.size,
+        recordedDays = recordedDays(achievements),
+        codexUnlocked = unlockedIds.size,
         codexTotal = presets.size,
         categories = categories,
         recent = recent,
@@ -271,36 +263,3 @@ private fun buildHomeState(
         avatarPreset = avatarPreset
     )
 }
-
-/**
- * 连续记录天数：把所有完成日期去重后，从今天往前数。
- * 今天还没完成不算断——从昨天开始数，符合"坚持"的真实语义。
- */
-private fun calculateStreak(achievements: List<Achievement>): Int {
-    val days = achievements
-        .mapNotNull { it.completedDate }
-        .map { startOfDay(it) }
-        .toHashSet()
-
-    if (days.isEmpty()) return 0
-
-    var cursor = startOfDay(System.currentTimeMillis())
-    if (!days.contains(cursor)) {
-        cursor -= DAY_MILLIS
-    }
-
-    var streak = 0
-    while (days.contains(cursor)) {
-        streak++
-        cursor -= DAY_MILLIS
-    }
-    return streak
-}
-
-private fun startOfDay(millis: Long): Long = Calendar.getInstance().apply {
-    timeInMillis = millis
-    set(Calendar.HOUR_OF_DAY, 0)
-    set(Calendar.MINUTE, 0)
-    set(Calendar.SECOND, 0)
-    set(Calendar.MILLISECOND, 0)
-}.timeInMillis

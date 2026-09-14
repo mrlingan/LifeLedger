@@ -405,6 +405,29 @@ fun rememberUriThumbnail(
     return thumbnail
 }
 
+/**
+ * 存下来的图片：现在都是私有目录里的绝对路径，但老版本可能还留着相册给的
+ * content:// 地址（临时读取凭证），两种都要能画出来，所以这里挑解码方式。
+ */
+@Composable
+fun rememberStoredImageThumbnail(stored: String?, sizePx: Int): ImageBitmap? {
+    val context = LocalContext.current
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, stored, sizePx) {
+        value = if (stored == null) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                if (stored.startsWith("content://")) {
+                    decodeUriThumbnail(context, Uri.parse(stored), sizePx)
+                } else {
+                    decodeThumbnail(stored, isVideo = false, sizePx)
+                }
+            }
+        }
+    }
+    return bitmap
+}
+
 private fun decodeThumbnail(path: String, isVideo: Boolean, sizePx: Int): ImageBitmap? {
     if (!File(path).exists()) return null
     val bitmap = if (isVideo) decodeVideoFrame(path) else decodeSampledFile(path, sizePx)

@@ -21,6 +21,10 @@ class NoteRepository(
     suspend fun getNoteById(noteId: Long): Note? =
         noteDao.getNoteById(noteId)
 
+    /** 笔记总数（响应式）：「我的」页显示数据量用 */
+    fun observeCount(): Flow<Int> =
+        noteDao.observeNoteCount()
+
     suspend fun insertNote(note: Note): Long =
         noteDao.insertNote(note)
 

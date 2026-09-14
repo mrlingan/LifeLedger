@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 data class AchievementSettingsUiState(
     val defaultIcon: String = "",
@@ -56,10 +55,5 @@ class AchievementSettingsViewModel(application: Application) : AndroidViewModel(
         settings.setFavoriteCategories(
             if (category in current) current - category else current + category
         )
-    }
-
-    /** 新建成就时用的默认图标，写在设置里 */
-    fun resetIcon() {
-        viewModelScope.launch { settings.setDefaultIcon(com.Anchored.mylife.data.repository.AchievementRepository.DEFAULT_ICON) }
     }
 }

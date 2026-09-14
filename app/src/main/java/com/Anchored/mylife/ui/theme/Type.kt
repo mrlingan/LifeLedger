@@ -30,6 +30,14 @@ data class AppTypography(
     val bodySmall: TextStyle,
     /** 说明性文字、单位、时间 */
     val caption: TextStyle,
+    /**
+     * 图标字形：设置项行首那枚方块里的符号（不是文字，是图标）。
+     *
+     * 单独一档是因为它要的既不是标题也不是正文：比正文大、比标题轻，
+     * 落在 42dp 的方块里四周留白才是均匀的。符号由系统自带的符号字体渲染，
+     * 颜色交给调用方。
+     */
+    val glyph: TextStyle,
     /** 核心数字：完成数、百分比这类主角数字 */
     val numberLarge: TextStyle,
     /** 次级数字：统计栏、列表里的计数 */
@@ -81,6 +89,12 @@ internal val AppType = AppTypography(
         fontSize = 11.sp,
         lineHeight = 15.sp,
         letterSpacing = 0.3.sp
+    ),
+    glyph = TextStyle(
+        // 符号字体本身带留白，20sp 落在 42dp 的方块里视觉大小刚好和
+        // 旁边的标题一样重；加粗反而会让这种单线符号糊成一团，所以不加
+        fontSize = 20.sp,
+        lineHeight = 24.sp
     ),
     numberLarge = TextStyle(
         fontWeight = FontWeight.Bold,

@@ -7,6 +7,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.Anchored.mylife.data.database.Achievement
+import com.Anchored.mylife.data.database.AchievementMedia
 import com.Anchored.mylife.data.database.PresetAchievement
 import com.Anchored.mylife.data.repository.AchievementRepository
 import com.Anchored.mylife.data.repository.PresetAchievementRepository
@@ -18,6 +19,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** 图鉴里最近解锁的一条：条目本身 + 完成时间 + 封面（用户当时配过的图，没配就是 null） */
+data class CodexRecentUnlock(
+    val preset: PresetAchievement,
+    val completedDate: Long,
+    val photoPath: String? = null
+)
 
 /** 图鉴的达成状态筛选 */
 enum class CodexStatusFilter(@param:StringRes val labelRes: Int) {
@@ -39,6 +47,12 @@ data class PresetCodexUiState(
     /** 预先算好的稀有度档位，避免每次重组都重新推导 */
     val tierByPresetId: Map<Long, RarityTier> = emptyMap(),
     val categories: List<String> = emptyList(),
+    /** 分类的收集进度，顺序和 [categories] 一致（「全部」那一格由页面自己补） */
+    val categoryProgress: List<CategoryProgress> = emptyList(),
+    /** 五个稀有度档位各自收了多少，从常见到稀有 */
+    val tierProgress: List<TierProgress> = emptyList(),
+    /** 最近解锁的几条，最新的一条在最前面；一条都没有时是空表 */
+    val recentUnlocks: List<CodexRecentUnlock> = emptyList(),
     /** null 表示「全部」 */
     val selectedCategory: String? = null,
     val query: String = "",
@@ -93,8 +107,6 @@ data class PresetCodexUiState(
     val progress: Float
         get() = if (totalCount == 0) 0f else unlockedCount.toFloat() / totalCount
 
-    fun countOf(category: String): Int = allItems.count { it.category == category }
-
     fun tierOf(preset: PresetAchievement): RarityTier =
         tierByPresetId[preset.id] ?: RarityTier.fromRate(preset.rate)
 
@@ -106,6 +118,17 @@ data class PresetCodexUiState(
     /** 已完成那条记录的完成日期；没完成就是 null */
     fun unlockedDateOf(preset: PresetAchievement): Long? =
         achievementOf(preset)?.takeIf { it.isCompleted }?.completedDate
+
+    /**
+     * 是不是「随便看看」的状态：没筛状态、没搜关键词、也没选分类。
+     *
+     * 「最新解锁」和「稀有度图鉴」两段总览只在这种时候出现——已经在找某一条的人，
+     * 需要的是结果，不是又一段总结。
+     */
+    val isBrowsing: Boolean
+        get() = statusFilter == CodexStatusFilter.ALL &&
+            query.isBlank() &&
+            selectedCategory == null
 }
 
 class PresetAchievementViewModel(application: Application) : AndroidViewModel(application) {
@@ -113,15 +136,29 @@ class PresetAchievementViewModel(application: Application) : AndroidViewModel(ap
     private val repositories = RepositoryProvider.get(application)
     private val presetRepository: PresetAchievementRepository = repositories.presetAchievementRepository
     private val achievementRepository: AchievementRepository = repositories.achievementRepository
+    private val mediaRepository = repositories.mediaRepository
     private val settings = repositories.settings
 
-    /** 图鉴内容 + 用户关注的分类：分类列表要按关注度重排 */
-    private val presetsWithFavorites = combine(
+    /**
+     * 图鉴内容 + 用户偏好 + 自己的成就 + 这些成就的配图。
+     *
+     * 这几条流合成一份「素材」再往下算：页面状态是它们的纯函数，
+     * 搜索词或筛选变化时不用重新订阅数据库。
+     */
+    private val sources = combine(
         presetRepository.observeAll(),
         settings.favoriteCategories,
-        settings.confirmCompletion
-    ) { presets, favorites, confirm ->
-        Triple(presets, favorites, confirm)
+        settings.confirmCompletion,
+        achievementRepository.observeAllAchievements(),
+        mediaRepository.observeAchievementImages()
+    ) { presets, favorites, confirm, achievements, images ->
+        CodexSources(
+            presets = presets,
+            favoriteCategories = favorites,
+            confirmCompletion = confirm,
+            achievements = achievements,
+            images = images
+        )
     }
 
     private val selectedCategory = MutableStateFlow<String?>(null)
@@ -129,34 +166,12 @@ class PresetAchievementViewModel(application: Application) : AndroidViewModel(ap
     private val statusFilter = MutableStateFlow(CodexStatusFilter.ALL)
 
     val uiState: StateFlow<PresetCodexUiState> = combine(
-        presetsWithFavorites,
-        achievementRepository.observeAllAchievements(),
+        sources,
         selectedCategory,
         query,
         statusFilter
-    ) { presetBundle, achievements, category, keyword, status ->
-        val (presets, favorites, confirm) = presetBundle
-        PresetCodexUiState(
-            allItems = presets,
-            linkedAchievements = achievements
-                .mapNotNull { achievement -> achievement.presetId?.let { it to achievement } }
-                .toMap(),
-            tierByPresetId = presets.associate { it.id to RarityTier.fromRate(it.rate) },
-            // 关注的分类排前面，其余按条目数
-            categories = presets.groupingBy { it.category }
-                .eachCount()
-                .entries
-                .sortedWith(
-                    compareByDescending<Map.Entry<String, Int>> { it.key in favorites }
-                        .thenByDescending { it.value }
-                )
-                .map { it.key },
-            selectedCategory = category,
-            query = keyword,
-            statusFilter = status,
-            confirmCompletion = confirm,
-            isLoaded = true
-        )
+    ) { source, category, keyword, status ->
+        buildCodexState(source, category, keyword, status)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -216,4 +231,105 @@ class PresetAchievementViewModel(application: Application) : AndroidViewModel(ap
             )
         }
     }
+}
+
+/** 图鉴要用到的全部素材，合成一次往下传 */
+private data class CodexSources(
+    val presets: List<PresetAchievement>,
+    val favoriteCategories: Set<String>,
+    val confirmCompletion: Boolean,
+    val achievements: List<Achievement>,
+    val images: List<AchievementMedia>
+)
+
+/** 「最新解锁」摆几条：两列两行 */
+private const val RECENT_UNLOCK_LIMIT = 4
+
+/**
+ * 素材 + 三个筛选条件 → 页面状态。
+ *
+ * 统计口径和图鉴本身一致：只有存在一条 presetId 相同、且已完成的成就，才算解锁，
+ * 所以这里算出来的进度和详情页、首页、我的页永远是同一个数。
+ */
+private fun buildCodexState(
+    sources: CodexSources,
+    selectedCategory: String?,
+    query: String,
+    status: CodexStatusFilter
+): PresetCodexUiState {
+    val presets = sources.presets
+    val linked = sources.achievements
+        .mapNotNull { achievement -> achievement.presetId?.let { it to achievement } }
+        .toMap()
+    val tierOfPreset = presets.associate { it.id to RarityTier.fromRate(it.rate) }
+    val unlockedIds = presets
+        .filter { preset -> linked[preset.id]?.isCompleted == true }
+        .map { it.id }
+        .toSet()
+
+    // 关注的分类排前面，其余按条目数
+    val categories = presets.groupingBy { it.category }
+        .eachCount()
+        .entries
+        .sortedWith(
+            compareByDescending<Map.Entry<String, Int>> { it.key in sources.favoriteCategories }
+                .thenByDescending { it.value }
+        )
+        .map { it.key }
+
+    // 分类进度只算图鉴条目：用户自己写、又挑了分类的成就不是图鉴的一部分，
+    // 它们只出现在首页那一行分类进度里
+    val byCategory = presets.groupBy { it.category }
+    val categoryProgress = categories.map { category ->
+        val items = byCategory[category].orEmpty()
+        CategoryProgress(
+            category = category,
+            unlockedCount = items.count { it.id in unlockedIds },
+            totalCount = items.size
+        )
+    }
+
+    val byTier = presets.groupBy { tierOfPreset[it.id] }
+    val tierProgress = RarityTier.entries.map { tier ->
+        val items = byTier[tier].orEmpty()
+        TierProgress(
+            tier = tier,
+            unlockedCount = items.count { it.id in unlockedIds },
+            totalCount = items.size
+        )
+    }
+
+    // 每条成就取最早的一张图当封面（查询已按时间正序，先到先得）
+    val coverByAchievement = HashMap<Long, String>()
+    for (image in sources.images) {
+        coverByAchievement.putIfAbsent(image.achievementId, image.filePath)
+    }
+    val presetById = presets.associateBy { it.id }
+    val recentUnlocks = linked.values
+        .filter { it.isCompleted && it.completedDate != null }
+        .sortedByDescending { it.completedDate ?: 0L }
+        .take(RECENT_UNLOCK_LIMIT)
+        .mapNotNull { achievement ->
+            val preset = achievement.presetId?.let { presetById[it] } ?: return@mapNotNull null
+            CodexRecentUnlock(
+                preset = preset,
+                completedDate = achievement.completedDate ?: 0L,
+                photoPath = coverByAchievement[achievement.id]
+            )
+        }
+
+    return PresetCodexUiState(
+        allItems = presets,
+        linkedAchievements = linked,
+        tierByPresetId = tierOfPreset,
+        categories = categories,
+        categoryProgress = categoryProgress,
+        tierProgress = tierProgress,
+        recentUnlocks = recentUnlocks,
+        selectedCategory = selectedCategory,
+        query = query,
+        statusFilter = status,
+        confirmCompletion = sources.confirmCompletion,
+        isLoaded = true
+    )
 }

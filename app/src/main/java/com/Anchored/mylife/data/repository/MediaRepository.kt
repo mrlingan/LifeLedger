@@ -43,6 +43,10 @@ class MediaRepository(
     suspend fun getMediaById(mediaId: Long): Media? =
         mediaDao.getMediaById(mediaId)
 
+    /** 图片 / 视频总数（响应式）：「我的」页显示数据量用 */
+    fun observeCount(): Flow<Int> =
+        mediaDao.observeMediaCount()
+
     // ---------- 写入 ----------
 
     suspend fun insertMedia(media: Media): Long =

@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.Anchored.mylife.data.repository.RepositoryProvider
 import com.Anchored.mylife.data.settings.HomeSection
-import com.Anchored.mylife.data.achievement.CategoryCatalog
+import com.Anchored.mylife.data.settings.HomeSectionEntry
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,21 +13,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-/** 首页那一行最多放五个圈 */
-internal const val HOME_CATEGORY_LIMIT = 5
-
-/**
- * 分类这一摊子的几个来源：颜色、用户新建的、挑过要显示的几个、成就上用过的。
- *
- * 打包成一个中间对象，是因为 combine 一次最多接五个流——真正要算的是它们的并集。
- */
-private data class CategorySources(
-    val colors: Map<String, String>,
-    val custom: Set<String>,
-    val home: List<String>,
-    val used: List<String>
-)
 
 /**
  * 首页板块定制的状态。
@@ -39,18 +24,13 @@ private data class CategorySources(
  * 默认只开三段，剩下两段（最近解锁 / 记录起点）也得在设置页里列出来才有地方打开。
  */
 data class HomeLayoutUiState(
-    val visible: List<HomeSection> = HomeSection.DEFAULT_ORDER,
+    val visible: List<HomeSectionEntry> = HomeSection.DEFAULT_ENTRIES,
+    /** 首页上一个实例都没有的类型（列在设置页下面，⊕ / 开关能放回来） */
     val hidden: List<HomeSection> = emptyList(),
     /** 当前是否就是默认布局：用来决定「恢复默认」要不要露出来 */
     val isDefault: Boolean = true,
-    /** 所有可用的分类：图鉴内置 ∪ 用户新建 ∪ 成就上用过的（见 CategoryCatalog） */
-    val categories: List<String> = emptyList(),
-    /** 用户新建的分类：只有这些能删掉 */
-    val customCategories: Set<String> = emptySet(),
-    /** 首页分类进度显示哪几个；顺序就是显示顺序，空 = 还没挑过（按自动排序取前五） */
-    val homeCategories: List<String> = emptyList(),
-    /** 分类名 → "%08X"，只包含用户改过颜色的那些 */
-    val categoryColors: Map<String, String> = emptyMap()
+    /** 板块实例 id → 配图绝对路径（自定义图片用） */
+    val images: Map<String, String> = emptyMap()
 )
 
 /**
@@ -63,71 +43,49 @@ class HomeLayoutViewModel(application: Application) : AndroidViewModel(applicati
 
     private val settings = RepositoryProvider.get(application).settings
 
-    private val presetRepository = RepositoryProvider.get(application).presetAchievementRepository
-
     private val repositories = RepositoryProvider.get(application)
 
-    /** 首页自定义图片；null = 还没上传过 */
-    val homeImagePath: StateFlow<String?> = settings.homeImagePath
-
-    /** 存下裁剪好的图：先写新文件，写成功了再删旧的（中途失败也不会把现有的图弄丢） */
-    fun setHomeImage(bitmap: android.graphics.Bitmap) {
+    /**
+     * 给某一份实例配图：相册挑的那张**原图**直接复制进私有目录，中间不过裁剪。
+     *
+     * 存的是私有目录里的绝对路径，不是相册给的 content:// 地址——那个读取凭证
+     * 在用户清空相册、卸载图库、换手机之后就失效了（见 ImageDirectoryStore）。
+     * 换图时先写新文件、成功了再删旧的，中途失败也不会把现有的图弄丢。
+     */
+    fun setImage(id: String, uri: android.net.Uri) {
         viewModelScope.launch {
+            val previous = settings.homeSectionImages.value[id]
             val path = withContext(Dispatchers.IO) {
                 runCatching {
-                    repositories.homeImageStore.save(
-                        bitmap = bitmap,
-                        previousPath = settings.homeImagePath.value
-                    )
+                    repositories.homeImageStore.replace(uri = uri, previousPath = previous)
                 }.getOrNull()
             }
-            if (path != null) settings.setHomeImagePath(path)
+            if (path != null) settings.setHomeSectionImage(id, path)
         }
     }
 
-    /** 移除：先清偏好（界面立刻不再显示），再删磁盘上的文件 */
-    fun clearHomeImage() {
-        val previous = settings.homeImagePath.value
-        settings.setHomeImagePath(null)
+    /**
+     * 摘掉某一份的图：先清偏好（界面立刻不再显示），再删磁盘上的文件。
+     *
+     * 注意这跟"把这块从首页拿走"不是一回事：拿走（开关关掉 / 编辑态 ⊖）**不动配图**，
+     * 放回来时那张图还在——和以前单张图片时的行为一致。只有这个明确的「移除图片」
+     * 才会真的删文件。
+     */
+    fun clearImage(id: String) {
+        val previous = settings.homeSectionImages.value[id]
+        settings.setHomeSectionImage(id, null)
         viewModelScope.launch(Dispatchers.IO) { repositories.homeImageStore.delete(previous) }
-    }
-
-    private val categorySources = combine(
-        settings.categoryColors,
-        settings.customCategories,
-        settings.homeCategories,
-        RepositoryProvider.get(application).achievementRepository
-            .observeAllAchievements()
-    ) { colors, custom, home, achievements ->
-        CategorySources(
-            colors = colors,
-            custom = custom,
-            home = home,
-            used = achievements.map { it.category }.filter { it.isNotBlank() }
-        )
     }
 
     val uiState: StateFlow<HomeLayoutUiState> = combine(
         settings.homeSections,
-        categorySources,
-        presetRepository.observeAll()
-    ) { visible, categories, presets ->
+        settings.homeSectionImages
+    ) { visible, images ->
         HomeLayoutUiState(
             visible = visible,
-            hidden = HomeSection.entries.filterNot { it in visible },
-            isDefault = visible == HomeSection.DEFAULT_ORDER,
-            categories = CategoryCatalog.merge(
-                presetCategories = presets.groupingBy { it.category }
-                    .eachCount()
-                    .entries
-                    .sortedByDescending { it.value }
-                    .map { it.key },
-                customCategories = categories.custom,
-                usedInAchievements = categories.used
-            ),
-            customCategories = categories.custom,
-            homeCategories = categories.home,
-            categoryColors = categories.colors
+            hidden = HomeSection.entries.filterNot { type -> visible.any { it.type == type } },
+            isDefault = visible == HomeSection.DEFAULT_ENTRIES,
+            images = images
         )
     }
         .stateIn(
@@ -136,42 +94,35 @@ class HomeLayoutViewModel(application: Application) : AndroidViewModel(applicati
             initialValue = HomeLayoutUiState()
         )
 
-    /** 给某个分类的圆环挑颜色；传 null 表示回到主题色 */
-    fun setCategoryColor(category: String, color: String?) {
-        settings.setCategoryColor(category, color)
-    }
-
-    /** 新建一个分类：只有名字，用不用得上由用户自己挂到成就上 */
-    fun addCategory(name: String) {
-        settings.addCustomCategory(name)
-    }
-
-    /** 删掉一个自建分类：同时把它从"首页显示"里摘掉，免得留下一个不存在的名字 */
-    fun removeCategory(name: String) {
-        settings.removeCustomCategory(name)
-        if (name in settings.homeCategories.value) {
-            settings.setHomeCategories(settings.homeCategories.value - name)
-        }
-        settings.setCategoryColor(name, null)
-    }
-
-    /** 切一个分类要不要出现在首页；超过了 [HOME_CATEGORY_LIMIT] 就不动（界面会把按钮置灰） */
-    fun toggleHomeCategory(category: String) {
-        val current = settings.homeCategories.value
-        settings.setHomeCategories(
-            when {
-                category in current -> current - category
-                current.size >= HOME_CATEGORY_LIMIT -> current
-                else -> current + category
-            }
-        )
-    }
-
-    /** 开关一个板块：开着的关掉，关着的排到末尾 */
+    /**
+     * 开关一个板块类型：这类在首页还有实例就全摘掉，一个都没有就放回第一份。
+     *
+     * 配图不动：关掉再打开，那张图还在（见 [clearImage] 的说明）。
+     */
     fun toggle(section: HomeSection) {
         update { current ->
-            if (section in current) current - section else current + section
+            if (current.any { it.type == section }) {
+                current.filterNot { it.type == section }
+            } else {
+                current + HomeSectionEntry.primary(section)
+            }
         }
+    }
+
+    /**
+     * ＋ 添加一份板块。
+     *
+     * 只接受白名单里的类型（[HomeSection.REPEATABLE]，目前只有自定义图片）：
+     * 「人生进度」这类全局汇总摆两份只是同样的数字画两遍，界面也不会把它们列出来。
+     */
+    fun addSection(section: HomeSection) {
+        if (section !in HomeSection.REPEATABLE) return
+        update { current -> current + HomeSectionEntry.next(section, current) }
+    }
+
+    /** 拿走某一份实例（编辑态的 ⊖ / 非编辑态的开关）：配图保留，放回来还在 */
+    fun removeInstance(id: String) {
+        update { current -> current.filterNot { it.id == id } }
     }
 
     /**
@@ -191,14 +142,18 @@ class HomeLayoutViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /** 恢复默认：回到默认那三段、默认顺序（最近解锁与记录起点重新收起） */
-    fun reset() = settings.setHomeSections(HomeSection.DEFAULT_ORDER)
+    fun reset() = settings.setHomeSections(HomeSection.DEFAULT_ENTRIES)
 
     /** 全部显示：把藏起来的都放回来（含默认关着的那两段），已有的顺序不动 */
     fun showAllHidden() {
-        update { current -> current + HomeSection.entries.filterNot { it in current } }
+        update { current ->
+            current + HomeSection.entries
+                .filterNot { type -> current.any { it.type == type } }
+                .map { HomeSectionEntry.primary(it) }
+        }
     }
 
-    private fun update(transform: (List<HomeSection>) -> List<HomeSection>) {
-        settings.setHomeSections(transform(settings.homeSections.value).distinct())
+    private fun update(transform: (List<HomeSectionEntry>) -> List<HomeSectionEntry>) {
+        settings.setHomeSections(transform(settings.homeSections.value).distinctBy { it.id })
     }
 }

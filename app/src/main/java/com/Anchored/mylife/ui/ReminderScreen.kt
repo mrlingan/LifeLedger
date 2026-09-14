@@ -176,7 +176,7 @@ fun ReminderScreen(
                 ) {
                     AppSettingRow(
                         title = stringResource(R.string.reminder_time),
-                        subtitle = stringResource(R.string.reminder_enable_desc),
+                        subtitle = stringResource(R.string.reminder_time_desc),
                         trailingText = stringResource(
                             R.string.settings_reminder_time_value,
                             uiState.hour,

@@ -9,15 +9,23 @@ import com.Anchored.mylife.data.dao.AchievementDao
 import com.Anchored.mylife.data.dao.MediaDao
 import com.Anchored.mylife.data.dao.NoteDao
 import com.Anchored.mylife.data.dao.PresetAchievementDao
+import com.Anchored.mylife.data.dao.GrowthDao
+import com.Anchored.mylife.data.dao.RewardDao
 
 @Database(
     entities = [
         Achievement::class,
         Note::class,
         Media::class,
-        PresetAchievement::class
+        PresetAchievement::class,
+        PointTransaction::class,
+        Goal::class,
+        GoalTask::class,
+        DailyEvent::class,
+        RewardItem::class,
+        RewardRedemption::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(DateConverters::class)
@@ -26,6 +34,8 @@ abstract class AchievementDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun mediaDao(): MediaDao
     abstract fun presetAchievementDao(): PresetAchievementDao
+    abstract fun growthDao(): GrowthDao
+    abstract fun rewardDao(): RewardDao
 
     companion object {
         /**
@@ -84,6 +94,39 @@ abstract class AchievementDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE `achievements` ADD COLUMN `category` TEXT NOT NULL DEFAULT ''"
                 )
+            }
+        }
+
+        /** v5 -> v6: append-only growth tables; no existing user row is altered. */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `point_transactions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `amount` INTEGER NOT NULL, `type` TEXT NOT NULL, `sourceId` TEXT, `description` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_point_transactions_createdAt` ON `point_transactions` (`createdAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_point_transactions_sourceId` ON `point_transactions` (`sourceId`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `goals` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `startDate` INTEGER NOT NULL, `dueDate` INTEGER NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_goals_status` ON `goals` (`status`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `goal_tasks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `goalId` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `scheduledDate` INTEGER NOT NULL, `reward` INTEGER NOT NULL, `isCompleted` INTEGER NOT NULL, `completedAt` INTEGER)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_goal_tasks_goalId` ON `goal_tasks` (`goalId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_goal_tasks_scheduledDate` ON `goal_tasks` (`scheduledDate`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `daily_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateKey` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `type` TEXT NOT NULL, `rarity` TEXT NOT NULL, `effect` TEXT NOT NULL, `reward` INTEGER NOT NULL, `penalty` INTEGER NOT NULL, `condition` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `isDrawn` INTEGER NOT NULL, `isCompleted` INTEGER NOT NULL, `isFailed` INTEGER NOT NULL, `resolvedAt` INTEGER)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_daily_events_dateKey` ON `daily_events` (`dateKey`)")
+            }
+        }
+
+        /**
+         * v6 -> v7：新增积分商城的两张表。
+         *
+         * 同样是纯新增：奖励目录与兑换记录都是新表，既有数据一条都不动。
+         * 内置的六条奖励不在这里写，而是第一次进商城时按当时的语言落库
+         * （见 RewardRepository.seedCatalogOnce）——迁移只负责把表建出来。
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `reward_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `icon` TEXT NOT NULL, `category` TEXT NOT NULL, `price` INTEGER NOT NULL, `isCustom` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reward_items_category` ON `reward_items` (`category`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `reward_redemptions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `rewardId` INTEGER NOT NULL, `title` TEXT NOT NULL, `icon` TEXT NOT NULL, `category` TEXT NOT NULL, `price` INTEGER NOT NULL, `redeemedAt` INTEGER NOT NULL, `refundedAt` INTEGER)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reward_redemptions_rewardId` ON `reward_redemptions` (`rewardId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reward_redemptions_redeemedAt` ON `reward_redemptions` (`redeemedAt`)")
             }
         }
     }

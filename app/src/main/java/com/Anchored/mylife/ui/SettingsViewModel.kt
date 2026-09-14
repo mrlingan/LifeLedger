@@ -3,6 +3,7 @@ package com.Anchored.mylife.ui
 import com.Anchored.mylife.R
 
 import android.app.Application
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.biometric.BiometricManager
@@ -15,6 +16,7 @@ import com.Anchored.mylife.data.profile.AvatarPreset
 import com.Anchored.mylife.data.repository.RepositoryProvider
 import com.Anchored.mylife.data.settings.AppSettings
 import com.Anchored.mylife.data.settings.HomeSection
+import com.Anchored.mylife.data.settings.HomeSectionEntry
 import com.Anchored.mylife.data.settings.ThemeMode
 import com.Anchored.mylife.data.settings.FontScaleChoice
 import com.Anchored.mylife.data.settings.ListDensity
@@ -33,7 +35,8 @@ import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val backgroundImageUri: String? = null,
+    /** 全局背景图的绝对路径（副本在 files/background/ 里）；null = 没挑过 */
+    val backgroundImagePath: String? = null,
     /** 背景图片显示强度，0.05..0.90；越大图片越明显 */
     val backgroundImageOpacity: Float = AppSettings.BACKGROUND_OPACITY_DEFAULT,
     val appLockEnabled: Boolean = false,
@@ -53,6 +56,12 @@ data class SettingsUiState(
     val avatarPath: String? = null,
     /** 内置头像；和 [avatarPath] 二选一，两个都没有时头像用昵称首字 */
     val avatarPreset: AvatarPreset? = null,
+    /**
+     * 阶段：资料卡上那枚 Lv.N 牌子。
+     *
+     * 和首页、「我的」是同一套口径（[levelOf]），所以三个地方的数字永远一致。
+     */
+    val level: Int = 1,
     /** 显示与动效偏好 */
     val listDensity: ListDensity = ListDensity.STANDARD,
     val fontScale: FontScaleChoice = FontScaleChoice.STANDARD,
@@ -60,7 +69,7 @@ data class SettingsUiState(
     /** 液态玻璃：卡片与底栏是否折射背后的画面 */
     val liquidGlass: Boolean = true,
     /** 首页当前显示的板块：设置项上要显示「已显示 n / m」 */
-    val homeSections: List<HomeSection> = HomeSection.DEFAULT_ORDER,
+    val homeSections: List<HomeSectionEntry> = HomeSection.DEFAULT_ENTRIES,
     /** 每日提醒 */
     val reminderEnabled: Boolean = false,
     val reminderHour: Int = 21,
@@ -102,6 +111,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val app: Application = application
     private val repositories = RepositoryProvider.get(application)
+    private val achievementRepository = repositories.achievementRepository
+    val networkEnabled = repositories.settings.networkEnabled
+
+    fun setNetworkEnabled(enabled: Boolean) = repositories.settings.setNetworkEnabled(enabled)
     private val settings: AppSettings = repositories.settings
 
     private val stats = MutableStateFlow(BackupSummary())
@@ -118,10 +131,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     // combine 直接接的上限是 5 个流，这里先把同类项打包，免得层层嵌套
     private val appearanceSettings: Flow<AppearanceSettings> = combine(
         settings.themeMode,
-        settings.backgroundImageUri,
+        settings.backgroundImagePath,
         settings.backgroundImageOpacity
-    ) { themeMode, backgroundImageUri, backgroundImageOpacity ->
-        AppearanceSettings(themeMode, backgroundImageUri, backgroundImageOpacity)
+    ) { themeMode, backgroundImagePath, backgroundImageOpacity ->
+        AppearanceSettings(themeMode, backgroundImagePath, backgroundImageOpacity)
     }
 
     private val coreSettings: Flow<CoreSettings> = combine(
@@ -133,7 +146,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     ) { appearance, appLockEnabled, appPinHash, backupSummary, appVersion ->
         CoreSettings(
             themeMode = appearance.themeMode,
-            backgroundImageUri = appearance.backgroundImageUri,
+            backgroundImagePath = appearance.backgroundImagePath,
             backgroundImageOpacity = appearance.backgroundImageOpacity,
             appLockEnabled = appLockEnabled,
             appPinHash = appPinHash,
@@ -142,13 +155,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
+    /**
+     * 资料卡要的东西：资料本身 + 阶段。
+     *
+     * 阶段在这里现算（完成条数 → [levelOf]），而不是存一份：完成一条成就，
+     * 设置页上的牌子立刻跟着变，和首页说的是同一个数字。
+     */
     private val profileSummary: Flow<ProfileSummary> = combine(
         settings.nickname,
         settings.signature,
         settings.avatarPath,
-        settings.avatarPreset
-    ) { nickname, signature, avatarPath, avatarPreset ->
-        ProfileSummary(nickname, signature, avatarPath, avatarPreset)
+        settings.avatarPreset,
+        achievementRepository.observeAllAchievements()
+    ) { nickname, signature, avatarPath, avatarPreset, achievements ->
+        ProfileSummary(
+            nickname = nickname,
+            signature = signature,
+            avatarPath = avatarPath,
+            avatarPreset = avatarPreset,
+            level = levelOf(achievements.count { it.isCompleted })
+        )
     }
 
     // 「外观」这一组里既有显示与动效，也有首页板块的开关，打包成一条流给界面
@@ -185,7 +211,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     ) { core, languageTag, profile, look, reminder ->
         SettingsUiState(
             themeMode = core.themeMode,
-            backgroundImageUri = core.backgroundImageUri,
+            backgroundImagePath = core.backgroundImagePath,
             backgroundImageOpacity = core.backgroundImageOpacity,
             appLockEnabled = core.appLockEnabled,
             appPinSet = core.appPinHash != null,
@@ -197,6 +223,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             signature = profile.signature,
             avatarPath = profile.avatarPath,
             avatarPreset = profile.avatarPreset,
+            level = profile.level,
             listDensity = look.density,
             fontScale = look.fontScale,
             motion = look.motion,
@@ -231,7 +258,32 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setThemeMode(mode: ThemeMode) {
         settings.setThemeMode(mode)
     }
-    fun setBackgroundImageUri(uri: String?) = settings.setBackgroundImageUri(uri)
+
+    /**
+     * 换一张全局背景图；传 null 表示清掉。
+     *
+     * 相册给的是临时读取凭证，所以先把原图复制一份进私有目录，偏好里只记绝对路径
+     * （和头像、自定义图标、首页配图是同一套做法）。复制失败就什么都不改，
+     * 免得把一个用不了的地址存进设置里。
+     */
+    fun setBackgroundImage(uri: Uri?) {
+        val previous = settings.backgroundImagePath.value
+        if (uri == null) {
+            settings.setBackgroundImagePath(null)
+            viewModelScope.launch(Dispatchers.IO) {
+                repositories.backgroundImageStore.delete(previous)
+            }
+            return
+        }
+        viewModelScope.launch {
+            val path = withContext(Dispatchers.IO) {
+                runCatching {
+                    repositories.backgroundImageStore.replace(uri, previousPath = previous)
+                }.getOrNull()
+            }
+            if (path != null) settings.setBackgroundImagePath(path)
+        }
+    }
 
     fun setBackgroundImageOpacity(opacity: Float) = settings.setBackgroundImageOpacity(opacity)
 
@@ -340,14 +392,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
 private data class AppearanceSettings(
     val themeMode: ThemeMode,
-    val backgroundImageUri: String?,
+    val backgroundImagePath: String?,
     val backgroundImageOpacity: Float
 )
 
 /** 设置页里几个"成组"的状态，打包后一起流给界面 */
 private data class CoreSettings(
     val themeMode: ThemeMode,
-    val backgroundImageUri: String?,
+    val backgroundImagePath: String?,
     val backgroundImageOpacity: Float,
     val appLockEnabled: Boolean,
     val appPinHash: String?,
@@ -359,7 +411,9 @@ private data class ProfileSummary(
     val nickname: String,
     val signature: String,
     val avatarPath: String?,
-    val avatarPreset: AvatarPreset?
+    val avatarPreset: AvatarPreset?,
+    /** 阶段：由完成条数推导 */
+    val level: Int
 )
 
 /** 外观 + 首页板块 + 液态玻璃：都是"看起来怎么样"，归一组 */
@@ -368,5 +422,5 @@ private data class LookSettings(
     val fontScale: FontScaleChoice,
     val motion: MotionChoice,
     val liquidGlass: Boolean,
-    val homeSections: List<HomeSection>
+    val homeSections: List<HomeSectionEntry>
 )

@@ -3,6 +3,8 @@ package com.Anchored.mylife.data.settings
 import android.content.Context
 import com.Anchored.mylife.data.crypto.AppPin
 import com.Anchored.mylife.data.profile.AvatarPreset
+import com.Anchored.mylife.data.profile.Gender
+import com.Anchored.mylife.data.profile.MbtiType
 import com.Anchored.mylife.data.repository.AchievementRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,8 +76,11 @@ enum class ReminderFrequency {
  * 和 [ThemeMode] 的处理方式一致——数据层不认识资源 id。
  */
 enum class HomeSection {
-    /** 人生进度：阶段 + 进度条 */
+    /** 人生进度：头像、昵称、阶段 + 进度条（首页的个人卡片） */
     LIFE_PROGRESS,
+
+    /** 快捷入口：写记录 / 目标 / 图鉴 / 成就 */
+    QUICK_ACTIONS,
 
     /** 核心数据：已完成 / 进行中 / 总记录 / 坚持天数 */
     OVERVIEW,
@@ -99,7 +104,7 @@ enum class HomeSection {
 
     companion object {
         /**
-         * 默认显示的三段：人生进度 / 核心数据 / 分类进度。
+         * 默认显示的四段：人生进度 / 快捷入口 / 核心数据 / 分类进度。
          *
          * 「最近解锁」和「记录起点」默认关着：前者一次多出三张卡片，把首页拉得比
          * 一屏还长；后者只是一行日期。想看的人去「设置 → 首页板块」打开就行——
@@ -107,9 +112,70 @@ enum class HomeSection {
          */
         val DEFAULT_ORDER: List<HomeSection> = listOf(
             LIFE_PROGRESS,
+            QUICK_ACTIONS,
             OVERVIEW,
             CATEGORIES
         )
+
+        /**
+         * 「首页板块」里可以重复添加的白名单。
+         *
+         * 只有这里列出来的板块能在设置页用 ＋ 添第二份、第三份。判断标准很实在：
+         * 这个板块能不能靠"多一份"讲出新东西。自定义图片可以（一人多张图，
+         * 每份各自一张、各自一个位置）；人生进度、核心数据这类是全局汇总，
+         * 摆两份只是把同样的数字画两遍，所以不在白名单里。
+         */
+        val REPEATABLE: Set<HomeSection> = setOf(CUSTOM_IMAGE)
+
+        /** 默认布局对应的实例列表（每份都是各自类型的第一份） */
+        val DEFAULT_ENTRIES: List<HomeSectionEntry> = DEFAULT_ORDER.map { HomeSectionEntry(it, it.name) }
+
+        /**
+         * 板块表本身的版本号，用来做**一次性**的布局迁移。
+         *
+         * 1.2.5 及更早存下来的布局里没有「快捷入口」这一项，读的时候要把它补进去，
+         * 否则升级上来的用户永远看不到这一段。补过一次之后就不再插手：
+         * 用户后来把它关掉，是因为他不想要，不是因为"老布局里没有"。
+         */
+        const val LAYOUT_VERSION = 2
+    }
+}
+
+/**
+ * 首页板块的一份实例。
+ *
+ * 大多数板块全局只有一份，[id] 就是类型名（`"OVERVIEW"`）；白名单里的板块
+ * （见 [HomeSection.REPEATABLE]）可以有多份，第 2、3 份的 id 是 `"CUSTOM_IMAGE#2"`
+ * 这种带序号的形式。
+ *
+ * 为什么排序、删除、配图都认 [id] 而不是认类型：类型只说明"这是什么板块"，
+ * 说不清"是哪一份"。三张自定义图片如果按类型记账，拖动、删中间那张的时候
+ * 图就会串位。
+ */
+data class HomeSectionEntry(
+    val type: HomeSection,
+    val id: String
+) {
+    /** 是不是该类型的第二份及以后：界面据此给标题加序号 */
+    val isExtra: Boolean get() = id != type.name
+
+    companion object {
+        /** 该类型的第一份 */
+        fun primary(type: HomeSection) = HomeSectionEntry(type, type.name)
+
+        /**
+         * 该类型的下一份：取一个没被占用的序号。
+         *
+         * 序号只在 id 里用，删掉第 2 份再加一份还是会拿到 `#2`——
+         * 序号对用户不可见，稳定比"永远递增"更重要（不然 id 会一直膨胀）。
+         */
+        fun next(type: HomeSection, existing: List<HomeSectionEntry>): HomeSectionEntry {
+            val taken = existing.mapTo(mutableSetOf()) { it.id }
+            if (type.name !in taken) return primary(type)
+            var slot = 2
+            while ("${type.name}#$slot" in taken) slot++
+            return HomeSectionEntry(type, "${type.name}#$slot")
+        }
     }
 }
 
@@ -127,8 +193,15 @@ class AppSettings(context: Context) {
     private val _themeMode = MutableStateFlow(readThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    private val _backgroundImageUri = MutableStateFlow(prefs.getString(KEY_BACKGROUND_IMAGE_URI, null))
-    val backgroundImageUri: StateFlow<String?> = _backgroundImageUri.asStateFlow()
+    /**
+     * 全局背景图的绝对路径（副本躺在 files/background/ 里，见 BackgroundImageStore）。
+     *
+     * null = 还没挑过。老版本直接存相册给的 content:// 地址——那是临时读取凭证，
+     * 重启手机后就读不出来了——所以这里换了键名，读到老值仍然认（见 [readBackgroundImagePath]），
+     * 启动时由 RepositoryProvider 把它复制成私有副本。
+     */
+    private val _backgroundImagePath = MutableStateFlow(readBackgroundImagePath())
+    val backgroundImagePath: StateFlow<String?> = _backgroundImagePath.asStateFlow()
 
     /**
      * 背景图片的显示强度，取值 [BACKGROUND_OPACITY_MIN]..[BACKGROUND_OPACITY_MAX]。
@@ -142,9 +215,24 @@ class AppSettings(context: Context) {
     )
     val backgroundImageOpacity: StateFlow<Float> = _backgroundImageOpacity.asStateFlow()
 
-    fun setBackgroundImageUri(uri: String?) {
-        prefs.edit().putString(KEY_BACKGROUND_IMAGE_URI, uri).apply()
-        _backgroundImageUri.value = uri
+    /**
+     * 记下背景图的位置；传 null 表示清掉。
+     *
+     * 清掉时写的是空串而不是删键：新键只要在就以它为准，否则用户清掉背景图之后，
+     * 老键里的 content:// 会把那张图"复活"出来（和首页配图踩的是同一个坑）。
+     * 磁盘上的旧文件由调用方负责删。
+     */
+    fun setBackgroundImagePath(path: String?) {
+        val stored = path.orEmpty()
+        prefs.edit().putString(KEY_BACKGROUND_IMAGE_PATH, stored).apply()
+        _backgroundImagePath.value = stored.takeIf { it.isNotBlank() }
+    }
+
+    private fun readBackgroundImagePath(): String? {
+        if (prefs.contains(KEY_BACKGROUND_IMAGE_PATH)) {
+            return prefs.getString(KEY_BACKGROUND_IMAGE_PATH, null)?.takeIf { it.isNotBlank() }
+        }
+        return prefs.getString(KEY_BACKGROUND_IMAGE_URI, null)?.takeIf { it.isNotBlank() }
     }
 
     fun setBackgroundImageOpacity(opacity: Float) {
@@ -203,6 +291,32 @@ class AppSettings(context: Context) {
         AvatarPreset.fromName(prefs.getString(KEY_AVATAR_PRESET, null))
     )
     val avatarPreset: StateFlow<AvatarPreset?> = _avatarPreset.asStateFlow()
+
+    /**
+     * 性别；null = 还没设过。
+     *
+     * 和 [nickname] / [signature] 分开存：那两个走 [setProfile] 一起落盘（头像文件
+     * 和昵称是"资料"这一件事），性别与 MBTI 是资料页上「基础信息」那一张卡里的选项，
+     * 点了就生效、没有草稿，各存各的键就够，不必挤进同一次写入。
+     */
+    private val _gender = MutableStateFlow(Gender.fromName(prefs.getString(KEY_GENDER, null)))
+    val gender: StateFlow<Gender?> = _gender.asStateFlow()
+
+    /** MBTI 类型；null = 还没设过 */
+    private val _mbti = MutableStateFlow(MbtiType.fromName(prefs.getString(KEY_MBTI, null)))
+    val mbti: StateFlow<MbtiType?> = _mbti.asStateFlow()
+
+    /** 记下性别；传 null 表示清掉，回到「未设置」 */
+    fun setGender(value: Gender?) {
+        prefs.edit().putString(KEY_GENDER, value?.name).apply()
+        _gender.value = value
+    }
+
+    /** 记下 MBTI；传 null 表示清掉，回到「未设置」 */
+    fun setMbti(value: MbtiType?) {
+        prefs.edit().putString(KEY_MBTI, value?.name).apply()
+        _mbti.value = value
+    }
 
     private val _startChoice = MutableStateFlow(readStartChoice())
     val startChoice: StateFlow<StartChoice> = _startChoice.asStateFlow()
@@ -321,19 +435,59 @@ class AppSettings(context: Context) {
     }
 
     /**
-     * 首页那张自定义图片的路径（已经复制进 files/home/）。
+     * 首页自定义图片：板块实例 id → 私有目录里的绝对路径（见 HomeImageStore）。
      *
-     * null = 还没上传过。首页那一段只有在有图的时候才画，
-     * 所以"打开开关但没图"不会留下一个空框。
+     * 用 id 而不是"第几张"记账，所以可以有好几张：白名单里的自定义图片能重复添加，
+     * 每份各自一张。没配图的那份不在表里，首页那段什么都不画——
+     * 一个空框比没有这一段更难看。
      */
-    private val _homeImagePath = MutableStateFlow(
-        prefs.getString(KEY_HOME_IMAGE_PATH, null)
-    )
-    val homeImagePath: StateFlow<String?> = _homeImagePath.asStateFlow()
+    private val _homeSectionImages = MutableStateFlow(readHomeSectionImages())
+    val homeSectionImages: StateFlow<Map<String, String>> = _homeSectionImages.asStateFlow()
 
-    fun setHomeImagePath(path: String?) {
-        prefs.edit().putString(KEY_HOME_IMAGE_PATH, path).apply()
-        _homeImagePath.value = path
+    /** 给某个板块实例配图；传 null = 这份没有图（调用方负责删磁盘上的旧文件） */
+    fun setHomeSectionImage(id: String, path: String?) {
+        val next = _homeSectionImages.value.toMutableMap()
+        if (path.isNullOrBlank()) next.remove(id) else next[id] = path
+        writeHomeSectionImages(next)
+        _homeSectionImages.value = next
+    }
+
+    private fun writeHomeSectionImages(images: Map<String, String>) {
+        prefs.edit()
+            .putString(
+                KEY_HOME_IMAGES,
+                images.entries.joinToString(ENTRY_SEPARATOR) { "${it.key}$IMAGE_SEPARATOR${it.value}" }
+            )
+            .apply()
+    }
+
+    /**
+     * 读配图表。
+     *
+     * 老版本只有一张图，存在单独的 [KEY_HOME_IMAGE_PATH] 里：第一次读到新键不存在时
+     * 把它迁成第一份自定义图片的配图，并立刻写回新键。
+     * **新键存在就以新键为准**（哪怕是空串）——否则用户删光图片后，
+     * 那个老键会把图"复活"出来。
+     */
+    private fun readHomeSectionImages(): Map<String, String> {
+        val raw = prefs.getString(KEY_HOME_IMAGES, null)
+        if (raw != null) {
+            return raw.split(ENTRY_SEPARATOR)
+                .mapNotNull { line ->
+                    val separator = line.indexOf(IMAGE_SEPARATOR)
+                    if (separator <= 0) null else line.substring(0, separator) to line.substring(separator + 1)
+                }
+                .toMap()
+        }
+
+        val legacy = prefs.getString(KEY_HOME_IMAGE_PATH, null)
+        val migrated = if (legacy.isNullOrBlank()) {
+            emptyMap()
+        } else {
+            mapOf(HomeSection.CUSTOM_IMAGE.name to legacy)
+        }
+        if (migrated.isNotEmpty()) writeHomeSectionImages(migrated)
+        return migrated
     }
 
     /**
@@ -374,15 +528,18 @@ class AppSettings(context: Context) {
      * 首页要显示的板块，**列表顺序就是显示顺序**。
      *
      * 只存"要显示的"，没列出来的板块 = 隐藏。空列表是合法状态（首页只留问候语），
-     * 所以这里不能用集合：顺序和重复项都要能表达。
+     * 所以这里不能用集合：顺序和重复项都要能表达——白名单板块可以有第二、第三份。
+     *
+     * 存的是实例 id（[HomeSectionEntry.id]）：`OVERVIEW` 这种既是类型名也是第一份的 id，
+     * 所以老版本存的 "LIFE_PROGRESS,OVERVIEW" 读进来仍然是对的。
      */
     private val _homeSections = MutableStateFlow(readHomeSections())
-    val homeSections: StateFlow<List<HomeSection>> = _homeSections.asStateFlow()
+    val homeSections: StateFlow<List<HomeSectionEntry>> = _homeSections.asStateFlow()
 
-    fun setHomeSections(sections: List<HomeSection>) {
-        val cleaned = sections.distinct()
+    fun setHomeSections(sections: List<HomeSectionEntry>) {
+        val cleaned = sections.distinctBy { it.id }
         prefs.edit()
-            .putString(KEY_HOME_SECTIONS, cleaned.joinToString(SECTION_SEPARATOR) { it.name })
+            .putString(KEY_HOME_SECTIONS, cleaned.joinToString(SECTION_SEPARATOR) { it.id })
             .apply()
         _homeSections.value = cleaned
     }
@@ -393,11 +550,49 @@ class AppSettings(context: Context) {
      * 没存过（首次启动 / 从没动过这一项的老用户）→ 默认那三段；
      * 存过但是空字符串 → 用户把板块全关了，不能退回默认。
      */
-    private fun readHomeSections(): List<HomeSection> {
-        val raw = prefs.getString(KEY_HOME_SECTIONS, null) ?: return HomeSection.DEFAULT_ORDER
-        return raw
+    private fun readHomeSections(): List<HomeSectionEntry> {
+        val raw = prefs.getString(KEY_HOME_SECTIONS, null) ?: return HomeSection.DEFAULT_ENTRIES
+        val stored = raw
             .split(SECTION_SEPARATOR)
-            .mapNotNull { name -> HomeSection.entries.firstOrNull { it.name == name } }
+            .mapNotNull { token ->
+                // id 里 "#" 后面是序号，取类型只看前面那一段
+                val name = token.substringBefore(SECTION_SLOT_MARK)
+                HomeSection.entries.firstOrNull { it.name == name }
+                    ?.let { HomeSectionEntry(it, token) }
+            }
+            .distinctBy { it.id }
+
+        return migrateHomeSections(stored)
+    }
+
+    /**
+     * 把老版本存下来的布局补成当前这一版的样子（**只做一次**）。
+     *
+     * 1.2.5 及更早没有「快捷入口」这一段：老布局里读不到它，升级上来的用户就永远
+     * 看不到。所以第一次读到老布局时，把它插回「人生进度」后面（也就是它默认该在
+     * 的位置），并记下版本号——之后用户再把它关掉，是因为不想要，不会再被塞回来。
+     *
+     * 空列表是合法状态（用户把板块全关了），不补。
+     */
+    private fun migrateHomeSections(stored: List<HomeSectionEntry>): List<HomeSectionEntry> {
+        if (prefs.getInt(KEY_HOME_SECTIONS_VERSION, 0) >= HomeSection.LAYOUT_VERSION) {
+            return stored
+        }
+        prefs.edit().putInt(KEY_HOME_SECTIONS_VERSION, HomeSection.LAYOUT_VERSION).apply()
+
+        if (stored.isEmpty() || stored.any { it.type == HomeSection.QUICK_ACTIONS }) return stored
+
+        val anchor = stored.indexOfFirst { it.type == HomeSection.LIFE_PROGRESS }
+        val updated = stored.toMutableList().apply {
+            add(
+                if (anchor >= 0) anchor + 1 else 0,
+                HomeSectionEntry.primary(HomeSection.QUICK_ACTIONS)
+            )
+        }
+        prefs.edit()
+            .putString(KEY_HOME_SECTIONS, updated.joinToString(SECTION_SEPARATOR) { it.id })
+            .apply()
+        return updated
     }
 
     // ---------------- 显示与动效 ----------------
@@ -424,6 +619,48 @@ class AppSettings(context: Context) {
     fun setLiquidGlass(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_LIQUID_GLASS, enabled).apply()
         _liquidGlass.value = enabled
+    }
+
+    /** 开发者显式授权后才允许访问网络；默认严格离线。 */
+    private val _networkEnabled = MutableStateFlow(prefs.getBoolean(KEY_NETWORK_ENABLED, false))
+    val networkEnabled: StateFlow<Boolean> = _networkEnabled.asStateFlow()
+
+    fun setNetworkEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NETWORK_ENABLED, enabled).apply()
+        _networkEnabled.value = enabled
+    }
+
+    // ---------------- 积分商城 ----------------
+
+    /**
+     * 内置奖励目录是不是已经摆过了。
+     *
+     * 和"表里有没有数据"分开判断：用户把内置那六条全删掉也是一个明确的选择，
+     * 下次进商城不该又给他长回来。这个标记只写一次，之后不再回头。
+     */
+    private val _rewardCatalogSeeded = MutableStateFlow(prefs.getBoolean(KEY_REWARD_SEEDED, false))
+    val rewardCatalogSeeded: StateFlow<Boolean> = _rewardCatalogSeeded.asStateFlow()
+
+    fun setRewardCatalogSeeded(seeded: Boolean) {
+        prefs.edit().putBoolean(KEY_REWARD_SEEDED, seeded).apply()
+        _rewardCatalogSeeded.value = seeded
+    }
+
+    /**
+     * 内置奖励目录的文案是按哪门语言落的库（`zh` / `en`）。
+     *
+     * 商城的标题与描述是存在表里的，切语言不会自己变，所以得记着上次同步用的是哪门语言：
+     * 进商城时对一下，不一样才去改那几行（见 RewardRepository.syncCatalogLanguage）。
+     * null = 老版本落的库，没记过——那时按"对一遍"处理，正好把老用户手里那几行也掰过来。
+     */
+    private val _rewardCatalogLanguage = MutableStateFlow(
+        prefs.getString(KEY_REWARD_LANGUAGE, null)
+    )
+    val rewardCatalogLanguage: StateFlow<String?> = _rewardCatalogLanguage.asStateFlow()
+
+    fun setRewardCatalogLanguage(language: String) {
+        prefs.edit().putString(KEY_REWARD_LANGUAGE, language).apply()
+        _rewardCatalogLanguage.value = language
     }
 
     fun setListDensity(value: ListDensity) {
@@ -540,6 +777,8 @@ class AppSettings(context: Context) {
 
         private const val PREFS_NAME = "lifeledger_settings"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_BACKGROUND_IMAGE_PATH = "background_image_path"
+        /** 老版本的键：存的是相册的 content:// 地址，只用于迁移时读一次 */
         private const val KEY_BACKGROUND_IMAGE_URI = "background_image_uri"
         private const val KEY_BACKGROUND_IMAGE_OPACITY = "background_image_opacity"
         private const val KEY_APP_LOCK = "app_lock_enabled"
@@ -548,6 +787,8 @@ class AppSettings(context: Context) {
         private const val KEY_SIGNATURE = "profile_signature"
         private const val KEY_AVATAR_PATH = "profile_avatar_path"
         private const val KEY_AVATAR_PRESET = "profile_avatar_preset"
+        private const val KEY_GENDER = "profile_gender"
+        private const val KEY_MBTI = "profile_mbti"
         private const val KEY_START_CHOICE = "start_choice"
         private const val KEY_DATA_ENCRYPTION = "data_encryption_enabled"
         private const val KEY_DEFAULT_ICON = "default_icon"
@@ -555,16 +796,28 @@ class AppSettings(context: Context) {
         private const val KEY_FAVORITE_CATEGORIES = "favorite_categories"
         private const val KEY_HOME_SECTIONS = "home_sections"
         private const val SECTION_SEPARATOR = ","
+        /** 板块实例 id 里类型与序号的间隔：`CUSTOM_IMAGE#2` */
+        private const val SECTION_SLOT_MARK = "#"
         private const val KEY_CATEGORY_COLORS = "category_colors"
         private const val COLOR_SEPARATOR = "|"
         private const val KEY_CUSTOM_CATEGORIES = "custom_categories"
         private const val KEY_HOME_CATEGORIES = "home_categories"
         private const val NAME_SEPARATOR = "\n"
+        /** 板块实例 id → 配图路径：一项一行，id 与路径之间用竖线 */
+        private const val KEY_HOME_IMAGES = "home_section_images"
+        private const val ENTRY_SEPARATOR = "\n"
+        private const val IMAGE_SEPARATOR = "|"
+        /** 老版本的单张首页图键；只在迁移时读一次，见 readHomeSectionImages */
         private const val KEY_HOME_IMAGE_PATH = "home_image_path"
         private const val KEY_LIST_DENSITY = "list_density"
+        /** 首页板块表的版本号：判断老布局要不要补「快捷入口」，见 [migrateHomeSections] */
+        private const val KEY_HOME_SECTIONS_VERSION = "home_sections_version"
         private const val KEY_FONT_SCALE = "font_scale"
         private const val KEY_MOTION = "motion_level"
         private const val KEY_LIQUID_GLASS = "liquid_glass_enabled"
+        private const val KEY_NETWORK_ENABLED = "network_enabled"
+        private const val KEY_REWARD_SEEDED = "reward_catalog_seeded"
+        private const val KEY_REWARD_LANGUAGE = "reward_catalog_language"
         private const val KEY_REMINDER_ENABLED = "reminder_enabled"
         private const val KEY_REMINDER_HOUR = "reminder_hour"
         private const val KEY_REMINDER_MINUTE = "reminder_minute"

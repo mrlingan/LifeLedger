@@ -26,12 +26,16 @@ import com.Anchored.mylife.ui.theme.Spacing
  *
  * 比 AppButton 轻一档：只有文字 + 箭头，用强调色，不占视觉重量，
  * 但保留 48dp 的最小点击高度。
+ *
+ * @param showChevron 箭头只在"点了会去别处"时有意义；就地展开 / 收起这类动作
+ *        不画箭头，否则会让人以为要跳走（见成长页的「收起」「新建」）
  */
 @Composable
 fun AppTextLink(
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showChevron: Boolean = true
 ) {
     val colors = AppTheme.colors
 
@@ -48,12 +52,14 @@ fun AppTextLink(
             style = AppTheme.type.caption,
             color = colors.accentStrong
         )
-        Spacer(modifier = Modifier.width(Spacing.xxs))
-        Icon(
-            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-            contentDescription = null,
-            tint = colors.accentStrong,
-            modifier = Modifier.size(Sizes.iconSm)
-        )
+        if (showChevron) {
+            Spacer(modifier = Modifier.width(Spacing.xxs))
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.accentStrong,
+                modifier = Modifier.size(Sizes.iconSm)
+            )
+        }
     }
 }

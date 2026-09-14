@@ -1,8 +1,10 @@
 package com.Anchored.mylife.data.repository
 
 import android.content.Context
+import android.net.Uri
 import com.Anchored.mylife.data.backup.BackupManager
 import com.Anchored.mylife.data.achievement.IconImageStore
+import com.Anchored.mylife.data.background.BackgroundImageStore
 import com.Anchored.mylife.data.home.HomeImageStore
 import com.Anchored.mylife.data.database.DatabaseProvider
 import com.Anchored.mylife.data.crypto.DataCipher
@@ -35,6 +37,26 @@ class RepositoryProvider private constructor(context: Context) {
         CoroutineScope(Dispatchers.IO).launch { DataCipher.warmUp() }
     }
 
+    /**
+     * 老版本的背景图存的是相册给的 content:// 地址（临时读取凭证，重启手机后读不出来），
+     * 启动时把它复制一份进私有目录，换成稳定路径；复制失败就下次启动再试，偏好不动。
+     *
+     * **只能由 [get] 在构造完成之后调用。** 以前这一步写在 init 里直接 launch，协程
+     * 会在属性初始化完成前抢跑，摸到 [settings] 时那个 `by lazy` 的委托字段还是
+     * null，整个进程跟着挂掉——协程抢不抢得到是随机的，所以表现成"有时一进就闪退"
+     * （日志里是 Lazy.getValue() 的 NPE，手机和模拟器都复现过）。
+     */
+    private fun migrateLegacyBackgroundImage() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val legacy = settings.backgroundImagePath.value ?: return@launch
+            if (!legacy.startsWith("content://")) return@launch
+            val path = runCatching {
+                backgroundImageStore.replace(Uri.parse(legacy), previousPath = null)
+            }.getOrNull() ?: return@launch
+            settings.setBackgroundImagePath(path)
+        }
+    }
+
     // 用户自己写的内容：读库时一律解密，写库时按设置里的开关决定加不加密。
     // 装饰在 DAO 这一层：仓库、备份、迁移都从这里过，上层一行都不用改。
     private val achievementDao = EncryptedAchievementDao(database.achievementDao()) {
@@ -54,11 +76,19 @@ class RepositoryProvider private constructor(context: Context) {
     }
 
     val achievementRepository: AchievementRepository by lazy {
-        AchievementRepository(achievementDao)
+        AchievementRepository(achievementDao, pointService)
     }
 
     val noteRepository: NoteRepository by lazy {
         NoteRepository(noteDao)
+    }
+
+    val pointService: PointService by lazy { PointService(database, database.growthDao()) }
+    val growthRepository: GrowthRepository by lazy { GrowthRepository(database, database.growthDao(), pointService) }
+
+    /** 积分商城：奖励目录与兑换记录，花的是 [pointService] 那本流水账上的积分 */
+    val rewardRepository: RewardRepository by lazy {
+        RewardRepository(database, database.rewardDao(), pointService, settings)
     }
 
     val mediaRepository: MediaRepository by lazy {
@@ -102,13 +132,22 @@ class RepositoryProvider private constructor(context: Context) {
         HomeImageStore(appContext)
     }
 
+    /** 全局背景图的私有副本 */
+    val backgroundImageStore: BackgroundImageStore by lazy {
+        BackgroundImageStore(appContext)
+    }
+
     companion object {
         @Volatile
         private var instance: RepositoryProvider? = null
 
         fun get(context: Context): RepositoryProvider {
             return instance ?: synchronized(this) {
-                instance ?: RepositoryProvider(context).also { instance = it }
+                instance ?: RepositoryProvider(context).also { created ->
+                    instance = created
+                    // 到这里构造函数已经跑完（属性初始化也结束了），协程才敢碰 settings
+                    created.migrateLegacyBackgroundImage()
+                }
             }
         }
     }

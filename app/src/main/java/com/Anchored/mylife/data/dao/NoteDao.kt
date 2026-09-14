@@ -43,6 +43,10 @@ interface NoteDao {
     @Query("SELECT COUNT(*) FROM notes")
     suspend fun countNotes(): Int
 
+    /** 「我的」页的数据量：笔记总数，增删自动刷新 */
+    @Query("SELECT COUNT(*) FROM notes")
+    fun observeNoteCount(): Flow<Int>
+
     @Query("DELETE FROM notes WHERE achievementId = :achievementId")
     suspend fun deleteNotesByAchievementId(achievementId: Long)
 

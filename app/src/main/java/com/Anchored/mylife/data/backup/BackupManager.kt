@@ -14,7 +14,10 @@ import com.Anchored.mylife.data.crypto.decrypted
 import com.Anchored.mylife.data.crypto.encrypted
 import com.Anchored.mylife.data.profile.ProfileImageStore
 import com.Anchored.mylife.data.profile.AvatarPreset
+import com.Anchored.mylife.data.profile.Gender
+import com.Anchored.mylife.data.profile.MbtiType
 import com.Anchored.mylife.data.settings.AppSettings
+import com.Anchored.mylife.data.settings.HomeSection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -96,9 +99,11 @@ class BackupManager(
             .map { File(it) }
             .filter { it.isFile && it.parentFile?.canonicalPath == iconDir.canonicalPath }
         // 首页那张自定义图片
-        val homeImageFile = settings.homeImagePath.value
-            ?.let { File(it) }
-            ?.takeIf { it.isFile && it.parentFile?.canonicalPath == homeDir.canonicalPath }
+        // 首页自定义图片可以有好几张（这个板块在白名单里，能重复添加），所以是一张表：
+        // 板块实例 id → 文件。只带出确实躺在 files/home/ 里的那些，别的路径一律不碰
+        val homeImageFiles = settings.homeSectionImages.value
+            .mapValues { (_, path) -> File(path) }
+            .filterValues { it.isFile && it.parentFile?.canonicalPath == homeDir.canonicalPath }
 
         val json = JSONObject().apply {
             put("version", BACKUP_VERSION)
@@ -115,6 +120,10 @@ class BackupManager(
                     // 内置头像：老备份里没有这一项，恢复时当作"没挑过"，
                     // 界面会回落到昵称首字
                     put("avatarPreset", settings.avatarPreset.value?.name ?: JSONObject.NULL)
+                    // 资料页「基础信息」里的两枚选项：没设过就写 null，
+                    // 恢复时读回 null，界面照旧显示「未设置」
+                    put("gender", settings.gender.value?.name ?: JSONObject.NULL)
+                    put("mbti", settings.mbti.value?.name ?: JSONObject.NULL)
                 }
             )
             put("achievements", achievements.toAchievementJsonArray())
@@ -149,7 +158,17 @@ class BackupManager(
                 JSONObject().apply {
                     put(
                         "image",
-                        homeImageFile?.let { "$HOME_DIR_NAME/${it.name}" } ?: JSONObject.NULL
+                        // 老字段照写：旧版导入新备份时至少还认得出第一张
+                        homeImageFiles[HomeSection.CUSTOM_IMAGE.name]
+                            ?.let { "$HOME_DIR_NAME/${it.name}" } ?: JSONObject.NULL
+                    )
+                    put(
+                        "images",
+                        JSONObject().apply {
+                            homeImageFiles.forEach { (id, file) ->
+                                put(id, "$HOME_DIR_NAME/${file.name}")
+                            }
+                        }
                     )
                 }
             )
@@ -179,7 +198,7 @@ class BackupManager(
 
                 iconFiles.forEach { addFileToZip(zip, it.absolutePath, ICON_DIR_NAME) }
 
-                homeImageFile?.let { addFileToZip(zip, it.absolutePath, HOME_DIR_NAME) }
+                homeImageFiles.values.forEach { addFileToZip(zip, it.absolutePath, HOME_DIR_NAME) }
             }
         }
 
@@ -288,6 +307,8 @@ class BackupManager(
      *
      * 老版本的备份里没有 profile 字段：这时昵称和签名保持不动，
      * 但头像路径必须清掉——上面已经把头像目录清空了，留着就是个死路径。
+     * 性别与 MBTI 是后来才进包的，同理：包里没有就保持本机现在的值，
+     * 只有包里明确写了（或者明确写了 null）才动它们。
      *
      * 头像的两个来源在包里各占一项：图片能解出来就用图片，内置头像只在没有图片时生效
      * ——和 [com.Anchored.mylife.data.settings.AppSettings.setProfile] 里那份"二选一"是同一个约定。
@@ -325,7 +346,26 @@ class BackupManager(
             avatarPath = avatarPath,
             avatarPreset = avatarPreset.takeIf { avatarPath == null }
         )
+
+        // 老备份里没有这两项：`has` 为 false 时一个字都不动，本机的选择留着
+        if (profile.has("gender")) {
+            settings.setGender(readProfileEnum(profile, "gender", Gender::fromName))
+        }
+        if (profile.has("mbti")) {
+            settings.setMbti(readProfileEnum(profile, "mbti", MbtiType::fromName))
+        }
     }
+
+    /**
+     * 读包里的一项枚举选项：JSON null（或空串）读成 null，也就是「未设置」。
+     *
+     * 认不出来的名字由 [fromName] 兜住，同样落回 null——手改过的备份不该让这一页崩掉。
+     */
+    private fun <T> readProfileEnum(
+        json: JSONObject,
+        key: String,
+        fromName: (String?) -> T?
+    ): T? = if (json.isNull(key)) null else fromName(json.optString(key).takeIf { it.isNotBlank() })
 
     /**
      * 恢复分类偏好。
@@ -364,18 +404,39 @@ class BackupManager(
     }
 
     /**
-     * 恢复首页那张自定义图片。
+     * 恢复首页的自定义图片。
      *
-     * 老备份没有这一段（json 里没有 home）→ 把路径清掉：
+     * 新备份存的是 `images` 那张表（板块实例 id → 相对路径），因为首页可以有好几张图；
+     * 老备份只有单个 `image` 字段，按"第一份自定义图片"接住。
+     *
+     * 两份都没有（json 里没有 home，或者用户从没上传过）→ 整张表清空：
      * 上面已经把图片目录清空了，继续留着一个绝对路径就是个死链。
      */
     private fun restoreHomeImage(home: JSONObject?) {
-        val relative = if (home == null || home.isNull("image")) {
+        settings.homeSectionImages.value.keys.toList().forEach { id ->
+            settings.setHomeSectionImage(id, null)
+        }
+        if (home == null) return
+
+        val images = home.optJSONObject("images")
+        if (images != null) {
+            images.keys().forEach { id ->
+                val relative = images.optString(id).takeIf { it.isNotBlank() }
+                if (relative != null) {
+                    settings.setHomeSectionImage(id, File(context.filesDir, relative).absolutePath)
+                }
+            }
+            return
+        }
+
+        // 老备份：单张图，当时它一定就是那一份「自定义图片」
+        val relative = if (home.isNull("image")) {
             null
         } else {
             home.optString("image").takeIf { it.isNotBlank() }
         }
-        settings.setHomeImagePath(relative?.let { File(context.filesDir, it).absolutePath })
+        val absolute = relative?.let { File(context.filesDir, it).absolutePath }
+        if (absolute != null) settings.setHomeSectionImage(HomeSection.CUSTOM_IMAGE.name, absolute)
     }
 
     /** 只读 zip 里的 backup.json，读完就结束，不用把整包解出来 */

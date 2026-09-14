@@ -2,10 +2,12 @@ package com.Anchored.mylife.data.repository
 
 import com.Anchored.mylife.data.dao.AchievementDao
 import com.Anchored.mylife.data.database.Achievement
+import com.Anchored.mylife.data.database.PointType
 import kotlinx.coroutines.flow.Flow
 
 class AchievementRepository(
-    private val achievementDao: AchievementDao
+    private val achievementDao: AchievementDao,
+    private val points: PointService? = null
 ) {
 
     // 列表用 Flow，数据库一变 UI 自动刷新
@@ -93,18 +95,33 @@ class AchievementRepository(
     suspend fun markCompleted(
         achievementId: Long,
         completedDate: Long = System.currentTimeMillis()
-    ) = achievementDao.updateCompletionStatus(
-        achievementId = achievementId,
-        isCompleted = true,
-        completedDate = completedDate
-    )
-
-    suspend fun markUncompleted(achievementId: Long) =
-        achievementDao.updateCompletionStatus(
-            achievementId = achievementId,
-            isCompleted = false,
-            completedDate = null
+    ) {
+        val item = achievementDao.getAchievementById(achievementId) ?: return
+        if (item.isCompleted) return
+        achievementDao.updateCompletionStatus(achievementId, true, completedDate)
+        points?.record(
+            COMPLETION_XP,
+            PointType.ACHIEVEMENT,
+            "achievement:$achievementId",
+            item.title,
+            completedDate
         )
+    }
+
+    suspend fun markUncompleted(achievementId: Long) {
+        val item = achievementDao.getAchievementById(achievementId) ?: return
+        if (!item.isCompleted) return
+        achievementDao.updateCompletionStatus(achievementId, false, null)
+        // A reversal is an equally visible ledger operation rather than silently changing balance.
+        // 记账时就标成「撤销」这一种类型：成长记录里那一行只靠类型就能写清楚，
+        // 描述里留着成就自己的标题，不用再拼一句只有英文的前缀。
+        points?.record(
+            -COMPLETION_XP,
+            PointType.ACHIEVEMENT_REVERSAL,
+            "achievement:$achievementId:reversal",
+            item.title
+        )
+    }
 
     suspend fun toggleCompletion(achievementId: Long) {
         val achievement = achievementDao.getAchievementById(achievementId) ?: return
@@ -132,5 +149,13 @@ class AchievementRepository(
 
     companion object {
         const val DEFAULT_ICON = "🏆"
+
+        /**
+         * 标记完成一条成就给的积分。
+         *
+         * 成长页的「人生属性」按这个数换算每个分类攒了多少 XP，
+         * 所以它是同一件事的唯一出处——改这里，账和属性一起跟着变。
+         */
+        const val COMPLETION_XP = 50
     }
 }

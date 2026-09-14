@@ -1,15 +1,14 @@
 package com.Anchored.mylife.ui.home
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import com.Anchored.mylife.ui.components.AppDivider
+import com.Anchored.mylife.ui.components.AppCard
+import com.Anchored.mylife.ui.components.AppCardTone
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
@@ -19,6 +18,9 @@ import com.Anchored.mylife.ui.theme.Spacing
  *
  * 这行字是真实数据（第一条记录的时间 + 累计记录天数），不是标语——
  * 它回答「我用它记录了多久」，是别的页面看不到的信息。
+ *
+ * 现在它单独占一张很矮的卡、文字居中：这一段是全页最后一块，
+ * 一条分割线加一行小字容易被当成列表的尾巴，包成卡片才看得出"这是页面在收尾"。
  */
 @Composable
 internal fun HomeFooter(
@@ -27,17 +29,20 @@ internal fun HomeFooter(
 ) {
     if (recordLine == null) return
 
-    Column(modifier = modifier) {
-        AppDivider(modifier = Modifier.padding(horizontal = Sizes.gutter))
-        Spacer(modifier = Modifier.height(Spacing.lg))
+    AppCard(
+        modifier = modifier.padding(horizontal = Sizes.gutter),
+        tone = AppCardTone.Glass,
+        contentPadding = PaddingValues(
+            horizontal = Spacing.lg,
+            vertical = Spacing.lg
+        )
+    ) {
         Text(
             text = recordLine,
-            style = AppTheme.type.caption,
-            color = AppTheme.colors.textTertiary,
+            style = AppTheme.type.bodySmall,
+            color = AppTheme.colors.textSecondary,
             textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Sizes.gutter)
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

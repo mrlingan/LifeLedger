@@ -14,6 +14,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -33,8 +35,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -54,7 +55,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -69,6 +69,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.Anchored.mylife.R
 import com.Anchored.mylife.data.settings.HomeSection
+import com.Anchored.mylife.data.settings.HomeSectionEntry
 import com.Anchored.mylife.ui.components.AppButton
 import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppCard
@@ -78,14 +79,11 @@ import com.Anchored.mylife.ui.components.AppDivider
 import com.Anchored.mylife.ui.components.AppSettingRow
 import com.Anchored.mylife.ui.components.AppSwitch
 import com.Anchored.mylife.ui.components.AppTopBar
-import com.Anchored.mylife.ui.components.CategoryNameDialog
-import com.Anchored.mylife.ui.components.ImageCropDialog
 import com.Anchored.mylife.ui.theme.AppTheme
 import com.Anchored.mylife.ui.theme.LifeLedgerTheme
 import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
-import com.Anchored.mylife.ui.theme.CategoryColorChoices
 import kotlin.math.floor
 
 /**
@@ -102,18 +100,15 @@ fun HomeLayoutRoute(
 
     HomeLayoutScreen(
         uiState = uiState,
-        homeImagePath = viewModel.homeImagePath.collectAsStateWithLifecycle().value,
         onBack = { navController.popBackStack() },
         onToggle = viewModel::toggle,
         onMove = viewModel::move,
         onShowAll = viewModel::showAllHidden,
         onReset = viewModel::reset,
-        onCategoryColor = viewModel::setCategoryColor,
-        onToggleHomeCategory = viewModel::toggleHomeCategory,
-        onAddCategory = viewModel::addCategory,
-        onRemoveCategory = viewModel::removeCategory,
-        onSetHomeImage = viewModel::setHomeImage,
-        onClearHomeImage = viewModel::clearHomeImage
+        onAddSection = viewModel::addSection,
+        onRemoveInstance = viewModel::removeInstance,
+        onSetImage = viewModel::setImage,
+        onClearImage = viewModel::clearImage
     )
 }
 
@@ -134,57 +129,52 @@ fun HomeLayoutRoute(
 @Composable
 fun HomeLayoutScreen(
     uiState: HomeLayoutUiState,
-    homeImagePath: String? = null,
     onBack: () -> Unit,
     onToggle: (HomeSection) -> Unit,
     onMove: (Int, Int) -> Unit,
     onShowAll: () -> Unit,
     onReset: () -> Unit,
-    onCategoryColor: (String, String?) -> Unit,
-    onToggleHomeCategory: (String) -> Unit,
-    onAddCategory: (String) -> Unit,
-    onRemoveCategory: (String) -> Unit,
-    onSetHomeImage: (android.graphics.Bitmap) -> Unit = {},
-    onClearHomeImage: () -> Unit = {}
+    /** ＋ 添加一份板块；只会传白名单里的类型（见 [HomeSection.REPEATABLE]） */
+    onAddSection: (HomeSection) -> Unit = {},
+    /** 拿走某一份实例（非编辑态的开关、编辑态的 ⊖） */
+    onRemoveInstance: (String) -> Unit = {},
+    /** 给某一份实例配图：参数是实例 id 与用户刚从相册挑的那张图的地址 */
+    onSetImage: (String, Uri) -> Unit = { _, _ -> },
+    /** 摘掉某一份实例的图 */
+    onClearImage: (String) -> Unit = {}
 ) {
     val colors = AppTheme.colors
     val visible = uiState.visible
     val hidden = uiState.hidden
-    val presetTexts = rememberPresetTexts()
+    val images = uiState.images
+    // 白名单：能重复添加的板块（目前只有自定义图片，见 [HomeSection.REPEATABLE]）
+    val addable = remember { HomeSection.entries.filter { it in HomeSection.REPEATABLE } }
+    // 板块名在这里就先取好：joinToString 的 lambda 不是 inline 的，
+    // 里面调 stringResource 会被编译器挡下来
+    val addableNames = addable.map { stringResource(it.titleRes()) }.joinToString(", ")
 
     var editing by remember { mutableStateOf(false) }
-    // 正在挑颜色的分类（null = 没开挑色弹窗）
-    var pickingColorFor by remember { mutableStateOf<String?>(null) }
-    // 正在新建分类
-    var creatingCategory by remember { mutableStateOf(false) }
-    // 分类那一组默认收起来：十几个分类全铺开，这一页就没法看了
-    var colorsExpanded by remember { mutableStateOf(false) }
-    // 刚选中、还没裁剪的图
-    var croppingUri by remember { mutableStateOf<Uri?>(null) }
+    // 正在给哪一份实例配图：相册返回是异步的，先记下目标，回来才知道往哪儿放
+    var pickingImageFor by remember { mutableStateOf<String?>(null) }
+    // 正在挑"要添加哪一份板块"
+    var addingSection by remember { mutableStateOf(false) }
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri -> if (uri != null) croppingUri = uri }
-
-    // 裁剪框的比例 = 首页那条横幅的比例（屏幕宽度扣掉页面留白和卡片内边距）
-    val configuration = LocalConfiguration.current
-    val bannerAspect = remember(configuration.screenWidthDp) {
-        val cardWidth = (
-            configuration.screenWidthDp -
-                Sizes.gutter.value * 2 -
-                Spacing.lg.value * 2
-            ).coerceAtLeast(Sizes.homeBanner.value)
-        cardWidth / Sizes.homeBanner.value
+    ) { uri ->
+        // 挑完直接用原图：中间不再过裁剪，所以这里拿到什么就存什么
+        if (uri != null) pickingImageFor?.let { id -> onSetImage(id, uri) }
+        pickingImageFor = null
     }
 
     // 拖拽状态：谁在被拖、拖了多远、以及这一列的几何（拖拽只跟这两个值算，不看实时测量）
-    var dragging by remember { mutableStateOf<HomeSection?>(null) }
+    var dragging by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var dragListTop by remember { mutableFloatStateOf(0f) }
     var dragRowHeight by remember { mutableFloatStateOf(0f) }
 
     // 每一行在卡片里的竖直位置：进编辑模式时用它反推整列的顶部和行高
-    val rowSpans = remember { mutableStateMapOf<HomeSection, ClosedFloatingPointRange<Float>>() }
+    val rowSpans = remember { mutableStateMapOf<String, ClosedFloatingPointRange<Float>>() }
 
     fun endDrag() {
         dragging = null
@@ -252,11 +242,21 @@ fun HomeLayoutScreen(
                         )
                     }
 
-                    visible.forEachIndexed { index, section ->
+                    visible.forEachIndexed { index, entry ->
                         if (index > 0) AppDivider()
 
-                        val isDragging = dragging == section
-                        val title = stringResource(section.titleRes())
+                        // 同一种板块的第几份：第二份起标题带序号，不然三张自定义图片
+                        // 在设置页里长得一模一样，拖动时根本分不清在挪哪一张
+                        val section = entry.type
+                        val instanceIndex = visible.take(index + 1).count { it.type == section }
+                        val title = stringResource(section.titleRes()).let { base ->
+                            if (instanceIndex > 1) {
+                                stringResource(R.string.home_layout_instance_title, base, instanceIndex)
+                            } else {
+                                base
+                            }
+                        }
+                        val isDragging = dragging == entry.id
 
                         SectionRow(
                             title = title,
@@ -265,7 +265,7 @@ fun HomeLayoutScreen(
                             modifier = Modifier
                                 .onGloballyPositioned { coordinates ->
                                     val top = coordinates.positionInParent().y
-                                    rowSpans[section] =
+                                    rowSpans[entry.id] =
                                         top..(top + coordinates.size.height)
                                 }
                                 .graphicsLayer {
@@ -283,7 +283,7 @@ fun HomeLayoutScreen(
                                         Modifier
                                     } else {
                                         Modifier.combinedClickable(
-                                            onClick = { onToggle(section) },
+                                            onClick = { onRemoveInstance(entry.id) },
                                             onLongClick = { editing = true }
                                         )
                                     }
@@ -297,7 +297,7 @@ fun HomeLayoutScreen(
                                             R.string.home_layout_hide,
                                             title
                                         ),
-                                        onClick = { onToggle(section) }
+                                        onClick = { onRemoveInstance(entry.id) }
                                     )
                                 }
                             } else {
@@ -310,20 +310,20 @@ fun HomeLayoutScreen(
                                             // 用"首行到末行"反推行距（含分隔线），比拿单行高度准：
                                             // 行与行之间还有一条 1dp 的分隔线，按行高算会越走越偏
                                             val first = visible.firstOrNull()
-                                                ?.let { rowSpans[it]?.start }
+                                                ?.let { rowSpans[it.id]?.start }
                                             val last = visible.lastOrNull()
-                                                ?.let { rowSpans[it]?.start }
+                                                ?.let { rowSpans[it.id]?.start }
                                             if (first != null && last != null && visible.size > 1) {
                                                 dragListTop = first
                                                 dragRowHeight =
                                                     (last - first) / (visible.size - 1)
-                                                dragging = section
+                                                dragging = entry.id
                                                 dragOffset = 0f
                                             }
                                         },
                                         onDrag = { dy ->
                                             val moved = dragging ?: return@DragHandle
-                                            val current = visible.indexOf(moved)
+                                            val current = visible.indexOfFirst { it.id == moved }
                                             if (current >= 0 && dragRowHeight > 0f) {
                                                 val lastIndex = visible.lastIndex
                                                 dragOffset = (
@@ -355,7 +355,7 @@ fun HomeLayoutScreen(
                                 {
                                     AppSwitch(
                                         checked = true,
-                                        onCheckedChange = { onToggle(section) }
+                                        onCheckedChange = { onRemoveInstance(entry.id) }
                                     )
                                 }
                             }
@@ -367,35 +367,60 @@ fun HomeLayoutScreen(
                         if (section == HomeSection.CUSTOM_IMAGE && !editing) {
                             AppDivider()
                             CustomImagePicker(
-                                path = homeImagePath,
+                                path = images[entry.id],
                                 onPick = {
+                                    pickingImageFor = entry.id
                                     imagePicker.launch(
                                         PickVisualMediaRequest(
                                             ActivityResultContracts.PickVisualMedia.ImageOnly
                                         )
                                     )
                                 },
-                                onRemove = onClearHomeImage
+                                onRemove = { onClearImage(entry.id) }
                             )
                         }
+                    }
 
-                        // 「核心数据」的子选项：分类颜色。它属于上面那一块，
-                        // 所以挂在同一张卡里往下缩一档，而不是另起一页/另起一张卡
-                        if (
-                            section == HomeSection.OVERVIEW &&
-                            !editing &&
-                            uiState.categories.isNotEmpty()
+                    // ＋ 添加一份板块。只列白名单里的类型（见 [HomeSection.REPEATABLE]），
+                    // 编辑态不出现：那一刻整列正在被拖动，多一行会跟着乱。
+                    if (addable.isNotEmpty() && !editing) {
+                        AppDivider()
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { addingSection = true }
+                                .padding(
+                                    horizontal = Spacing.lg,
+                                    vertical = Spacing.md
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AppDivider()
-                            CategoryColorOption(
-                                uiState = uiState,
-                                presetTexts = presetTexts,
-                                expanded = colorsExpanded,
-                                onToggleExpanded = { colorsExpanded = !colorsExpanded },
-                                onPickColor = { category -> pickingColorFor = category },
-                                onToggleHomeCategory = onToggleHomeCategory,
-                                onAddCategory = { creatingCategory = true }
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = null,
+                                tint = colors.accent,
+                                modifier = Modifier.size(Sizes.iconMd)
                             )
+
+                            Spacer(modifier = Modifier.width(Spacing.sm))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.home_layout_add_section),
+                                    style = AppTheme.type.bodyLarge,
+                                    color = colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.xxs))
+                                Text(
+                                    text = stringResource(
+                                        R.string.home_layout_add_section_hint,
+                                        addableNames
+                                    ),
+                                    style = AppTheme.type.bodySmall,
+                                    color = colors.textSecondary
+                                )
+                            }
                         }
                     }
 
@@ -453,26 +478,6 @@ fun HomeLayoutScreen(
                                     }
                                 }
                             )
-
-                            // 板块收起来了，它的子选项跟着走——不然「核心数据」一关，
-                            // 分类颜色就没地方改了（颜色管的是首页那几个圆环，和这一行在不在无关）。
-                            // 编辑态不展开子项：这时整列都在挪位置，点开只会添乱
-                            if (
-                                section == HomeSection.OVERVIEW &&
-                                !editing &&
-                                uiState.categories.isNotEmpty()
-                            ) {
-                                AppDivider()
-                                CategoryColorOption(
-                                    uiState = uiState,
-                                    presetTexts = presetTexts,
-                                    expanded = colorsExpanded,
-                                    onToggleExpanded = { colorsExpanded = !colorsExpanded },
-                                    onPickColor = { category -> pickingColorFor = category },
-                                    onToggleHomeCategory = onToggleHomeCategory,
-                                    onAddCategory = { creatingCategory = true }
-                                )
-                            }
                         }
                     }
                 }
@@ -515,273 +520,57 @@ fun HomeLayoutScreen(
         }
     }
 
-    val pickingCategory = pickingColorFor
-    if (pickingCategory != null) {
-        CategoryColorDialog(
-            categoryLabel = presetTexts.categoryOf(pickingCategory),
-            selected = uiState.categoryColors[pickingCategory],
-            onPick = { color ->
-                onCategoryColor(pickingCategory, color)
-                pickingColorFor = null
+    if (addingSection) {
+        AddSectionDialog(
+            options = addable,
+            onPick = { type ->
+                addingSection = false
+                onAddSection(type)
             },
-            onDelete = if (pickingCategory in uiState.customCategories) {
-                {
-                    onRemoveCategory(pickingCategory)
-                    pickingColorFor = null
-                }
-            } else {
-                null
-            },
-            onDismiss = { pickingColorFor = null }
-        )
-    }
-
-    if (creatingCategory) {
-        CategoryNameDialog(
-            title = stringResource(R.string.category_new_title),
-            initial = "",
-            onConfirm = { name ->
-                creatingCategory = false
-                onAddCategory(name)
-            },
-            onDismiss = { creatingCategory = false }
-        )
-    }
-
-    val cropSource = croppingUri
-    if (cropSource != null) {
-        ImageCropDialog(
-            source = cropSource,
-            // 裁剪框的比例 = 首页那条横幅的比例（卡片宽度扣掉左右留白）
-            aspect = bannerAspect,
-            onCropped = { bitmap ->
-                croppingUri = null
-                onSetHomeImage(bitmap)
-            },
-            onDismiss = { croppingUri = null }
+            onDismiss = { addingSection = false }
         )
     }
 }
 
 /**
- * 「核心数据」下面挂着的子选项：分类颜色。
+ * ＋ 添加一份板块。
  *
- * 十几个分类全铺开，这一页就没法看了，所以先收成一行：左边缩一档表示从属关系，
- * 右边一句「首页显示几个」，点开才列出每个分类。它和「自定义图片」是同一个路子——
- * 属于上面那个板块的东西就长在它下面，不另起一张卡。
+ * 只列白名单里的类型：[HomeSection.REPEATABLE] 的入选标准是"多一份能讲出新东西"——
+ * 自定义图片可以（一人多张图、各占一个位置），汇总类板块摆两份只是把同样的数字
+ * 画两遍。以后白名单变长，这里自动多出几行，不用改界面。
  */
 @Composable
-private fun CategoryColorOption(
-    uiState: HomeLayoutUiState,
-    presetTexts: PresetTextResolver,
-    expanded: Boolean,
-    onToggleExpanded: () -> Unit,
-    onPickColor: (String) -> Unit,
-    onToggleHomeCategory: (String) -> Unit,
-    onAddCategory: () -> Unit
-) {
-    val colors = AppTheme.colors
-    // 子项统一缩一档：和父行之间靠这条竖线拉开层级
-    val indent = Spacing.xxl
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggleExpanded)
-            .padding(
-                start = indent,
-                end = Spacing.lg,
-                top = Spacing.md,
-                bottom = Spacing.md
-            ),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.home_category_colors),
-                style = AppTheme.type.body,
-                color = colors.textSecondary
-            )
-            Spacer(modifier = Modifier.height(Spacing.xxs))
-            Text(
-                text = stringResource(
-                    R.string.home_category_shown,
-                    uiState.homeCategories.size,
-                    HOME_CATEGORY_LIMIT
-                ),
-                style = AppTheme.type.caption,
-                color = colors.textTertiary
-            )
-        }
-
-        Icon(
-            imageVector = if (expanded) {
-                Icons.Outlined.KeyboardArrowDown
-            } else {
-                Icons.AutoMirrored.Outlined.KeyboardArrowRight
-            },
-            contentDescription = null,
-            tint = colors.textTertiary,
-            modifier = Modifier.size(Sizes.iconMd)
-        )
-    }
-
-    if (!expanded) return
-
-    Column(
-        modifier = Modifier.padding(
-            start = indent,
-            end = Spacing.lg,
-            bottom = Spacing.md
-        )
-    ) {
-        Text(
-            text = stringResource(R.string.home_category_colors_desc),
-            style = AppTheme.type.bodySmall,
-            color = colors.textSecondary
-        )
-        Spacer(modifier = Modifier.height(Spacing.xxs))
-        Text(
-            text = stringResource(R.string.home_category_hint),
-            style = AppTheme.type.caption,
-            color = colors.textTertiary
-        )
-    }
-
-    uiState.categories.forEach { category ->
-        AppDivider()
-
-        val custom = storedColorToColor(uiState.categoryColors[category])
-        val shownOnHome = category in uiState.homeCategories
-        val canAddMore = uiState.homeCategories.size < HOME_CATEGORY_LIMIT
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onPickColor(category) }
-                .padding(
-                    start = indent,
-                    end = Spacing.lg,
-                    top = Spacing.md,
-                    bottom = Spacing.md
-                ),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(Sizes.categorySwatch)
-                    .clip(CircleShape)
-                    .background(custom ?: colors.accent)
-                    .border(Sizes.hairline, colors.border, CircleShape)
-            )
-
-            Spacer(modifier = Modifier.width(Spacing.md))
-
-            Text(
-                text = presetTexts.categoryOf(category),
-                style = AppTheme.type.bodyLarge,
-                color = colors.textPrimary,
-                modifier = Modifier.weight(1f)
-            )
-
-            AppSwitch(
-                checked = shownOnHome,
-                onCheckedChange = { onToggleHomeCategory(category) },
-                // 已经满了五个时，剩下的开关点不动——但已经选中的那个还能关掉
-                enabled = shownOnHome || canAddMore
-            )
-        }
-    }
-
-    AppDivider()
-
-    AppSettingRow(
-        title = stringResource(R.string.category_new_title),
-        subtitle = stringResource(R.string.category_new_desc),
-        showChevron = true,
-        onClick = onAddCategory
-    )
-}
-
-/**
- * 给一个分类挑圆环颜色。
- *
- * 挑完立刻生效、立刻关掉：这里没有"先预览再确认"的必要，
- * 首页就在这一步之后。
- */
-@Composable
-private fun CategoryColorDialog(
-    categoryLabel: String,
-    selected: String?,
-    onPick: (String?) -> Unit,
-    onDelete: (() -> Unit)?,
+private fun AddSectionDialog(
+    options: List<HomeSection>,
+    onPick: (HomeSection) -> Unit,
     onDismiss: () -> Unit
 ) {
     val colors = AppTheme.colors
 
     AppDialog(
-        title = stringResource(R.string.home_category_color_title),
+        title = stringResource(R.string.home_layout_add_section),
         onDismissRequest = onDismiss,
         onConfirm = onDismiss,
         confirmText = stringResource(R.string.common_got_it),
         dismissText = null,
         content = {
-            Column {
+            // 预设色块 + 取色器 + 跟随主题 + 删除，竖着排下来比一屏还高，
+            // 所以这里让它自己滚：小屏上不至于把「用这个颜色」挤到看不见
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    text = stringResource(R.string.home_category_color_desc, categoryLabel),
+                    text = stringResource(R.string.home_layout_add_section_desc),
                     style = AppTheme.type.body,
                     color = colors.textSecondary
                 )
 
-                Spacer(modifier = Modifier.height(Spacing.lg))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
-                CategoryColorChoices.chunked(5).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        row.forEach { color ->
-                            val isSelected = selected == color.toStoredColor()
-                            Box(
-                                modifier = Modifier
-                                    .size(Sizes.touchTarget)
-                                    .clip(CircleShape)
-                                    .clickable { onPick(color.toStoredColor()) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(Sizes.categorySwatch)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .then(
-                                            if (isSelected) {
-                                                Modifier.border(
-                                                    width = Sizes.editStroke,
-                                                    color = colors.textPrimary,
-                                                    shape = CircleShape
-                                                )
-                                            } else {
-                                                Modifier
-                                            }
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(Spacing.sm))
-
-                AppButton(
-                    text = stringResource(R.string.home_category_color_default),
-                    onClick = { onPick(null) },
-                    variant = AppButtonVariant.Text
-                )
-
-                if (onDelete != null) {
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                    AppButton(
-                        text = stringResource(R.string.category_delete),
-                        onClick = onDelete,
-                        variant = AppButtonVariant.Destructive
+                options.forEach { type ->
+                    AppSettingRow(
+                        title = stringResource(type.titleRes()),
+                        subtitle = stringResource(type.descRes()),
+                        showChevron = true,
+                        onClick = { onPick(type) }
                     )
                 }
             }
@@ -789,7 +578,12 @@ private fun CategoryColorDialog(
     )
 }
 
-/** 首页那张自定义图片的小预览：和首页上的形状一样（一条窄横幅），所见即所得 */
+/**
+ * 某一份自定义图片的控件：预览 + 上传 / 移除。
+ *
+ * 预览就是首页上的样子——整张图、按原图比例显示，所以没有尺寸要调：
+ * 图片传进来是什么比例，首页上就是什么比例。
+ */
 @Composable
 private fun CustomImagePicker(
     path: String?,
@@ -798,6 +592,7 @@ private fun CustomImagePicker(
 ) {
     val colors = AppTheme.colors
     val thumbnail = path?.let { rememberMediaThumbnail(path = it, isVideo = false, sizePx = 600) }
+    val aspect = thumbnail?.let { it.width.toFloat() / it.height.toFloat() }?.takeIf { it > 0f }
 
     Column(
         modifier = Modifier
@@ -812,11 +607,17 @@ private fun CustomImagePicker(
 
         Spacer(modifier = Modifier.height(Spacing.sm))
 
-        // 预览就是首页上的形状（一条窄横幅），所见即所得
+        // 有图按原比例画；还没图就给一个不高的占位框，说明这里之后会有东西
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(Sizes.homeBanner)
+                .then(
+                    if (aspect != null) {
+                        Modifier.aspectRatio(aspect)
+                    } else {
+                        Modifier.height(Sizes.homeBanner)
+                    }
+                )
                 .clip(RoundedCornerShape(Radius.md))
                 .background(colors.surfaceSunken),
             contentAlignment = Alignment.Center
@@ -825,7 +626,7 @@ private fun CustomImagePicker(
                 Image(
                     bitmap = thumbnail,
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -1039,6 +840,7 @@ private fun SettingsGroupLabel(text: String) {
 @StringRes
 private fun HomeSection.titleRes(): Int = when (this) {
     HomeSection.LIFE_PROGRESS -> R.string.home_life_progress
+    HomeSection.QUICK_ACTIONS -> R.string.home_section_quick
     HomeSection.OVERVIEW -> R.string.home_stats
     HomeSection.CATEGORIES -> R.string.home_category_progress
     HomeSection.CUSTOM_IMAGE -> R.string.home_custom_image
@@ -1049,6 +851,7 @@ private fun HomeSection.titleRes(): Int = when (this) {
 @StringRes
 private fun HomeSection.descRes(): Int = when (this) {
     HomeSection.LIFE_PROGRESS -> R.string.home_section_life_desc
+    HomeSection.QUICK_ACTIONS -> R.string.home_section_quick_desc
     HomeSection.OVERVIEW -> R.string.home_section_overview_desc
     HomeSection.CATEGORIES -> R.string.home_section_categories_desc
     HomeSection.CUSTOM_IMAGE -> R.string.home_custom_image_desc
@@ -1063,23 +866,18 @@ private fun HomeLayoutPreview() {
         HomeLayoutScreen(
             uiState = HomeLayoutUiState(
                 visible = listOf(
-                    HomeSection.OVERVIEW,
-                    HomeSection.RECENT,
-                    HomeSection.LIFE_PROGRESS
+                    HomeSectionEntry(HomeSection.OVERVIEW, HomeSection.OVERVIEW.name),
+                    HomeSectionEntry(HomeSection.RECENT, HomeSection.RECENT.name),
+                    HomeSectionEntry(HomeSection.LIFE_PROGRESS, HomeSection.LIFE_PROGRESS.name)
                 ),
                 hidden = listOf(HomeSection.CATEGORIES, HomeSection.FOOTER),
-                isDefault = false,
-                categories = listOf("技能", "兴趣", "旅行", "成长", "生活")
+                isDefault = false
             ),
             onBack = {},
             onToggle = {},
             onMove = { _, _ -> },
             onShowAll = {},
-            onReset = {},
-            onCategoryColor = { _, _ -> },
-            onToggleHomeCategory = {},
-            onAddCategory = {},
-            onRemoveCategory = {}
+            onReset = {}
         )
     }
 }

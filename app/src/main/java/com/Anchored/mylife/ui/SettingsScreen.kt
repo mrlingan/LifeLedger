@@ -1,6 +1,5 @@
 package com.Anchored.mylife.ui
 
-import android.net.Uri
 import com.Anchored.mylife.R
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -73,12 +73,16 @@ import com.Anchored.mylife.ui.components.AppButtonVariant
 import com.Anchored.mylife.ui.components.AppDialog
 import com.Anchored.mylife.ui.components.AppDialogText
 import com.Anchored.mylife.ui.components.AppDivider
+import com.Anchored.mylife.ui.components.AppIconButton
 import com.Anchored.mylife.ui.components.AppSegmentedControl
 import com.Anchored.mylife.ui.components.AppSettingRow
 import com.Anchored.mylife.ui.components.AppSwitch
 import com.Anchored.mylife.ui.components.AppSnackbarHost
 import com.Anchored.mylife.ui.components.AppTopBar
+import com.Anchored.mylife.ui.components.AppTopBarStyle
+import com.Anchored.mylife.ui.components.LevelPill
 import com.Anchored.mylife.ui.components.LocalBottomBarClearance
+import com.Anchored.mylife.ui.components.PageBackdrop
 import com.Anchored.mylife.ui.components.liquidglass.GlassSurface
 import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassBackdrop
 import com.Anchored.mylife.ui.components.liquidglass.LocalLiquidGlassEnabled
@@ -91,6 +95,38 @@ import com.Anchored.mylife.ui.theme.Radius
 import com.Anchored.mylife.ui.theme.Sizes
 import com.Anchored.mylife.ui.theme.Spacing
 import kotlin.math.roundToInt
+
+/**
+ * 设置项行首的符号。
+ *
+ * 这一页没有用线性图标，用的是系统自带符号字体里的一组单线符号：一来它们和
+ * "人生账本"的气质更近（像账本上手写的小记号，而不是 App 的功能图标），
+ * 二来省掉了为"主题 / 液态玻璃 / 语言"这类概念各画一条矢量路径。
+ *
+ * 每个字符都是从 emoji 之外的符号区里挑的（几何图形、箭头、杂项符号、带圈字母），
+ * 所以渲染出来永远是单色的，会乖乖跟着 tint 走，不会突然冒出一个彩色小图。
+ * 换字符时请挑同样这些区段里的：挑到 emoji 区会被彩色字体接管，符号就不再受色。
+ */
+private object SettingGlyph {
+    const val Achievements = "★"
+    const val HomeSections = "✦"
+    const val Theme = "✾"
+    const val Glass = "◍"
+    const val Language = "文"
+    const val Display = "▤"
+    const val Motion = "❖"
+    const val Backup = "↻"
+    const val Export = "⇅"
+    const val Reminder = "◷"
+    const val AppPin = "♙"
+    const val PinRemove = "ⓧ"
+    const val Biometric = "◎"
+    const val DataSecurity = "♢"
+    const val About = "ⓘ"
+    const val Network = "☍"
+    const val DemoData = "✚"
+    const val ClearData = "✕"
+}
 
 /** 规划中的条目统一标注，避免点了没反应（存资源 id，在使用处取文案） */
 private val SOON_LABEL = R.string.common_coming_soon
@@ -116,11 +152,12 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val networkEnabled by viewModel.networkEnabled.collectAsStateWithLifecycle()
     val demoState by viewModel.demoState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val backgroundPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri -> viewModel.setBackgroundImageUri(uri?.toString()) }
+    ) { uri -> viewModel.setBackgroundImage(uri) }
 
     LaunchedEffect(demoState.message) {
         val message = demoState.message ?: return@LaunchedEffect
@@ -132,8 +169,8 @@ fun SettingsRoute(
         uiState = uiState,
         demoState = demoState,
         snackbarHostState = snackbarHostState,
-        // 设置是底部导航的 tab，不需要返回箭头
-        onBack = null,
+        // 设置从首页右上角进入，是二级页，给出明确的返回入口。
+        onBack = { navController.popBackStack() },
         onOpenProfile = { navController.navigate("profile") },
         onOpenBackup = { navController.navigate("backup") },
         onOpenAchievementSettings = { navController.navigate("achievement_settings") },
@@ -147,7 +184,7 @@ fun SettingsRoute(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         },
-        onRemoveBackground = { viewModel.setBackgroundImageUri(null) },
+        onRemoveBackground = { viewModel.setBackgroundImage(null) },
         onBackgroundOpacityChange = viewModel::setBackgroundImageOpacity,
         onAppLockChange = viewModel::setAppLockEnabled,
         onPinSave = viewModel::setAppPin,
@@ -157,6 +194,8 @@ fun SettingsRoute(
         onListDensityChange = viewModel::setListDensity,
         onFontScaleChange = viewModel::setFontScale,
         onMotionChange = viewModel::setMotion,
+        networkEnabled = networkEnabled,
+        onNetworkEnabledChange = viewModel::setNetworkEnabled,
         onGenerateDemoData = viewModel::generateDemoData,
         onClearAllData = viewModel::clearAllData
     )
@@ -185,6 +224,8 @@ fun SettingsScreen(
     onListDensityChange: (ListDensity) -> Unit,
     onFontScaleChange: (FontScaleChoice) -> Unit,
     onMotionChange: (MotionChoice) -> Unit,
+    networkEnabled: Boolean = false,
+    onNetworkEnabledChange: (Boolean) -> Unit = {},
     /** 演示数据：只在可调试的包里出现，见下面的 demoDataAvailable */
     demoState: DemoDataState = DemoDataState(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -204,6 +245,7 @@ fun SettingsScreen(
     var showPinRemove by remember { mutableStateOf(false) }
     var showDisplay by remember { mutableStateOf(false) }
     var showAnimation by remember { mutableStateOf(false) }
+    var showQuickSettings by remember { mutableStateOf(false) }
     var showGenerateDemo by remember { mutableStateOf(false) }
     var showClearData by remember { mutableStateOf(false) }
 
@@ -212,44 +254,63 @@ fun SettingsScreen(
         snackbarHost = { AppSnackbarHost(hostState = snackbarHostState) },
         contentWindowInsets = WindowInsets.safeDrawing.only(
             WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
-        ),
-        topBar = {
-            AppTopBar(title = stringResource(R.string.settings_title), onBack = onBack)
-        }
+        )
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Sizes.gutter)
-                // 底栏是浮在内容上的：末尾再多留出它压住的高度
-                .padding(bottom = Spacing.xxl + LocalBottomBarClearance.current)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // 页面底色：和首页、成长页同一层很淡的蓝光。这一页的卡片也是玻璃，
+            // 压在底色上才有"浮着"的感觉；纯灰底上玻璃只是一块灰白
+            PageBackdrop()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    // 底栏是浮在内容上的：末尾再多留出它压住的高度
+                    .padding(bottom = Spacing.xxl + LocalBottomBarClearance.current)
+            ) {
+                SettingsHeader(
+                    onBack = onBack,
+                    onOpenQuickSettings = { showQuickSettings = true }
+                )
+
             ProfileHeader(
                 nickname = uiState.nickname,
                 signature = uiState.signature,
                 avatarPath = uiState.avatarPath,
                 avatarPreset = uiState.avatarPreset,
+                level = uiState.level,
+                // 大标题那一条是通栏的（它自己带左右留白），从资料卡往下才回到栏内
+                modifier = Modifier.padding(horizontal = Sizes.gutter),
                 onClick = onOpenProfile
             )
 
-            SettingsSection(title = stringResource(R.string.settings_sec_system)) {
+            SettingsSection(
+                title = stringResource(R.string.settings_sec_system),
+                modifier = Modifier.padding(horizontal = Sizes.gutter)
+            ) {
                 AppSettingRow(
                     title = stringResource(R.string.settings_achievements),
                     subtitle = stringResource(R.string.settings_achievements_desc),
+                    leadingGlyph = SettingGlyph.Achievements,
                     showChevron = true,
                     onClick = onOpenAchievementSettings
                 )
             }
 
-            SettingsSection(title = stringResource(R.string.settings_sec_look)) {
+            SettingsSection(
+                title = stringResource(R.string.settings_sec_look),
+                modifier = Modifier.padding(horizontal = Sizes.gutter)
+            ) {
                 AppSettingRow(
                     title = stringResource(R.string.settings_home_sections),
                     subtitle = stringResource(R.string.settings_home_sections_desc),
+                    leadingGlyph = SettingGlyph.HomeSections,
                     trailingText = stringResource(
                         R.string.settings_home_sections_value,
-                        uiState.homeSections.size,
+                        // 按"显示了几个板块"数：可重复的板块算一个，
+                        // 不然加了三张自定义图片会显示成 5 / 6 这种读不通的分数
+                        uiState.homeSections.map { it.type }.distinct().size,
                         HomeSection.entries.size
                     ),
                     showChevron = true,
@@ -259,6 +320,7 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_theme),
                     subtitle = stringResource(R.string.settings_theme_desc),
+                    leadingGlyph = SettingGlyph.Theme,
                     trailingText = stringResource(uiState.themeMode.labelRes()),
                     showChevron = true,
                     onClick = { showTheme = true }
@@ -267,6 +329,7 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_liquid_glass),
                     subtitle = stringResource(R.string.settings_liquid_glass_desc),
+                    leadingGlyph = SettingGlyph.Glass,
                     trailing = {
                         AppSwitch(
                             checked = uiState.liquidGlass,
@@ -278,6 +341,7 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_language),
                     subtitle = stringResource(R.string.settings_language_desc),
+                    leadingGlyph = SettingGlyph.Language,
                     trailingText = stringResource(uiState.language.labelRes),
                     showChevron = true,
                     onClick = { showLanguage = true }
@@ -286,6 +350,7 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_display),
                     subtitle = stringResource(R.string.settings_display_desc),
+                    leadingGlyph = SettingGlyph.Display,
                     trailingText = stringResource(uiState.fontScale.labelRes()),
                     showChevron = true,
                     onClick = { showDisplay = true }
@@ -294,13 +359,17 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_animation),
                     subtitle = stringResource(R.string.settings_animation_desc),
+                    leadingGlyph = SettingGlyph.Motion,
                     trailingText = stringResource(uiState.motion.labelRes()),
                     showChevron = true,
                     onClick = { showAnimation = true }
                 )
             }
 
-            SettingsSection(title = stringResource(R.string.settings_sec_data)) {
+            SettingsSection(
+                title = stringResource(R.string.settings_sec_data),
+                modifier = Modifier.padding(horizontal = Sizes.gutter)
+            ) {
                 AppSettingRow(
                     title = stringResource(R.string.backup_title),
                     subtitle = stringResource(
@@ -309,6 +378,7 @@ fun SettingsScreen(
                         uiState.stats.noteCount,
                         uiState.stats.mediaCount
                     ),
+                    leadingGlyph = SettingGlyph.Backup,
                     showChevron = true,
                     onClick = onOpenBackup
                 )
@@ -316,15 +386,20 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_export),
                     subtitle = stringResource(R.string.settings_export_desc),
+                    leadingGlyph = SettingGlyph.Export,
                     trailingText = stringResource(SOON_LABEL),
                     enabled = false
                 )
             }
 
-            SettingsSection(title = stringResource(R.string.settings_sec_notify)) {
+            SettingsSection(
+                title = stringResource(R.string.settings_sec_notify),
+                modifier = Modifier.padding(horizontal = Sizes.gutter)
+            ) {
                 AppSettingRow(
                     title = stringResource(R.string.settings_reminder),
                     subtitle = stringResource(R.string.settings_reminder_desc),
+                    leadingGlyph = SettingGlyph.Reminder,
                     trailingText = if (uiState.reminderEnabled) {
                         stringResource(
                             R.string.settings_reminder_time_value,
@@ -339,10 +414,14 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSection(title = stringResource(R.string.settings_sec_privacy)) {
+            SettingsSection(
+                title = stringResource(R.string.settings_sec_privacy),
+                modifier = Modifier.padding(horizontal = Sizes.gutter)
+            ) {
                 AppSettingRow(
                     title = stringResource(R.string.settings_app_pin),
                     subtitle = stringResource(R.string.settings_app_pin_desc),
+                    leadingGlyph = SettingGlyph.AppPin,
                     trailingText = if (uiState.appPinSet) {
                         stringResource(R.string.settings_app_pin_set)
                     } else {
@@ -357,6 +436,7 @@ fun SettingsScreen(
                     AppSettingRow(
                         title = stringResource(R.string.settings_app_pin_remove),
                         subtitle = stringResource(R.string.settings_app_pin_remove_desc),
+                        leadingGlyph = SettingGlyph.PinRemove,
                         destructive = true,
                         showChevron = true,
                         onClick = { showPinRemove = true }
@@ -370,6 +450,7 @@ fun SettingsScreen(
                     } else {
                         stringResource(R.string.settings_biometric_unlock_na)
                     },
+                    leadingGlyph = SettingGlyph.Biometric,
                     enabled = uiState.biometricAvailable,
                     trailing = {
                         AppSwitch(
@@ -383,15 +464,20 @@ fun SettingsScreen(
                 AppSettingRow(
                     title = stringResource(R.string.settings_data_sec),
                     subtitle = stringResource(R.string.settings_data_sec_desc),
+                    leadingGlyph = SettingGlyph.DataSecurity,
                     showChevron = true,
                     onClick = onOpenDataSecurity
                 )
             }
 
-            SettingsSection(title = stringResource(R.string.settings_sec_about)) {
+            SettingsSection(
+                title = stringResource(R.string.settings_sec_about),
+                modifier = Modifier.padding(horizontal = Sizes.gutter)
+            ) {
                 AppSettingRow(
                     title = stringResource(R.string.settings_about),
                     subtitle = stringResource(R.string.settings_about_desc),
+                    leadingGlyph = SettingGlyph.About,
                     showChevron = true,
                     onClick = { showAbout = true }
                 )
@@ -403,11 +489,25 @@ fun SettingsScreen(
                     title = stringResource(
                         R.string.settings_sec_dev_tools,
                         stringResource(demoReason.labelRes())
-                    )
+                    ),
+                    modifier = Modifier.padding(horizontal = Sizes.gutter)
                 ) {
+                    AppSettingRow(
+                        title = stringResource(R.string.settings_network_enabled),
+                        subtitle = stringResource(R.string.settings_network_enabled_desc),
+                        leadingGlyph = SettingGlyph.Network,
+                        trailing = {
+                            AppSwitch(
+                                checked = networkEnabled,
+                                onCheckedChange = onNetworkEnabledChange
+                            )
+                        }
+                    )
+                    AppDivider()
                     AppSettingRow(
                         title = stringResource(R.string.settings_demo_generate),
                         subtitle = stringResource(R.string.settings_demo_generate_desc),
+                        leadingGlyph = SettingGlyph.DemoData,
                         enabled = !demoState.busy,
                         showChevron = true,
                         onClick = { showGenerateDemo = true }
@@ -416,12 +516,14 @@ fun SettingsScreen(
                     AppSettingRow(
                         title = stringResource(R.string.settings_demo_clear),
                         subtitle = stringResource(R.string.settings_demo_clear_desc),
+                        leadingGlyph = SettingGlyph.ClearData,
                         destructive = true,
                         enabled = !demoState.busy,
                         showChevron = true,
                         onClick = { showClearData = true }
                     )
                 }
+            }
             }
         }
     }
@@ -481,7 +583,7 @@ fun SettingsScreen(
     if (showTheme) {
         ThemeDialog(
             themeMode = uiState.themeMode,
-            backgroundImageUri = uiState.backgroundImageUri,
+            backgroundImagePath = uiState.backgroundImagePath,
             backgroundOpacity = uiState.backgroundImageOpacity,
             onThemeModeChange = onThemeModeChange,
             onPickBackground = onPickBackground,
@@ -525,6 +627,88 @@ fun SettingsScreen(
             onDismiss = { showAnimation = false }
         )
     }
+
+    if (showQuickSettings) {
+        QuickSettingsDialog(
+            themeMode = uiState.themeMode,
+            liquidGlass = uiState.liquidGlass,
+            onThemeModeChange = onThemeModeChange,
+            onLiquidGlassChange = onLiquidGlassChange,
+            onDismiss = { showQuickSettings = false }
+        )
+    }
+}
+
+/**
+ * 快速设置：页头齿轮打开的那一格。
+ *
+ * 只放**看完就能决定**的两项——明暗模式与液态玻璃。它们是这一页里唯二
+ * "改一下整屏立刻变样"的设置，其余各项要么要选文件、要么要去下一级页面，
+ * 放进这个弹窗只会把这里变成一个小号的设置页。
+ */
+@Composable
+private fun QuickSettingsDialog(
+    themeMode: ThemeMode,
+    liquidGlass: Boolean,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onLiquidGlassChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    AppDialog(
+        title = stringResource(R.string.settings_quick),
+        onDismissRequest = onDismiss,
+        onConfirm = onDismiss,
+        confirmText = stringResource(R.string.common_got_it),
+        dismissText = null,
+        content = {
+            Column {
+                OptionLabel(
+                    title = stringResource(R.string.settings_theme_mode),
+                    description = null
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                AppSegmentedControl(
+                    options = ThemeMode.entries.map { stringResource(it.labelRes()) },
+                    selectedIndex = ThemeMode.entries.indexOf(themeMode),
+                    onSelect = { index -> onThemeModeChange(ThemeMode.entries[index]) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.xl))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_liquid_glass),
+                            style = AppTheme.type.bodyLarge,
+                            color = colors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.xxs))
+                        Text(
+                            text = stringResource(R.string.settings_liquid_glass_desc),
+                            style = AppTheme.type.bodySmall,
+                            color = colors.textSecondary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(Spacing.md))
+                    AppSwitch(
+                        checked = liquidGlass,
+                        onCheckedChange = onLiquidGlassChange
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                Text(
+                    text = stringResource(R.string.settings_quick_note),
+                    style = AppTheme.type.caption,
+                    color = colors.textTertiary
+                )
+            }
+        }
+    )
 }
 
 /** 语言选择。用对话框而不是分段控件：以后加语言不用重排版面 */
@@ -637,7 +821,7 @@ private fun LanguageOptionRow(
 @Composable
 private fun ThemeDialog(
     themeMode: ThemeMode,
-    backgroundImageUri: String?,
+    backgroundImagePath: String?,
     backgroundOpacity: Float,
     onThemeModeChange: (ThemeMode) -> Unit,
     onPickBackground: () -> Unit,
@@ -675,14 +859,14 @@ private fun ThemeDialog(
                 )
                 Spacer(modifier = Modifier.height(Spacing.md))
 
-                BackgroundPreview(uri = backgroundImageUri, opacity = backgroundOpacity)
+                BackgroundPreview(path = backgroundImagePath, opacity = backgroundOpacity)
 
                 Spacer(modifier = Modifier.height(Spacing.md))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AppButton(
                         text = stringResource(
-                            if (backgroundImageUri == null) {
+                            if (backgroundImagePath == null) {
                                 R.string.settings_background_pick
                             } else {
                                 R.string.settings_background_change
@@ -691,7 +875,7 @@ private fun ThemeDialog(
                         onClick = onPickBackground,
                         variant = AppButtonVariant.Secondary
                     )
-                    if (backgroundImageUri != null) {
+                    if (backgroundImagePath != null) {
                         Spacer(modifier = Modifier.width(Spacing.sm))
                         AppButton(
                             text = stringResource(R.string.settings_background_remove),
@@ -701,7 +885,7 @@ private fun ThemeDialog(
                     }
                 }
 
-                if (backgroundImageUri != null) {
+                if (backgroundImagePath != null) {
                     Spacer(modifier = Modifier.height(Spacing.xl))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -748,9 +932,9 @@ private fun ThemeDialog(
 
 /** 背景图小预览：按当前强度画一遍，没选图时显示提示文字 */
 @Composable
-private fun BackgroundPreview(uri: String?, opacity: Float) {
+private fun BackgroundPreview(path: String?, opacity: Float) {
     val colors = AppTheme.colors
-    val thumbnail = uri?.let { rememberUriThumbnail(Uri.parse(it), sizePx = 360) }
+    val thumbnail = rememberStoredImageThumbnail(path, sizePx = 360)
 
     Box(
         modifier = Modifier
@@ -779,17 +963,53 @@ private fun BackgroundPreview(uri: String?, opacity: Float) {
     }
 }
 
-/** 一个分组：小标题 + 一张容器卡片。卡片是液态玻璃，和首页板块同一种材质 */
+/**
+ * 页头：大标题 + 一句话 + 右上角的快速设置。
+ *
+ * 和首页、成长页一样用大标题顶栏：进设置先要看清"这是哪一页"，
+ * 而不是先撞上一条导航栏。返回箭头占左、齿轮占右，各在一头。
+ */
+@Composable
+private fun SettingsHeader(
+    onBack: (() -> Unit)?,
+    onOpenQuickSettings: () -> Unit
+) {
+    AppTopBar(
+        title = stringResource(R.string.settings_title),
+        subtitle = stringResource(R.string.settings_subtitle),
+        style = AppTopBarStyle.Large,
+        onBack = onBack,
+        actions = {
+            // 齿轮给的是"最常用的那两项"：不想为一句话翻到下面去找
+            AppIconButton(
+                icon = Icons.Outlined.Settings,
+                contentDescription = stringResource(R.string.settings_quick),
+                onClick = onOpenQuickSettings
+            )
+        }
+    )
+}
+
+/**
+ * 一个分组：小标题 + 一张容器卡片。卡片是液态玻璃，和首页板块同一种材质。
+ *
+ * 圆角比普通卡片大一档（[Radius.xl]）：这种卡里从上到下装了七八行，
+ * 用普通卡片的 16dp 圆角会显得四角太尖、和里面那排 42dp 的图标方块也不是一个尺度。
+ *
+ * @param modifier 会**同时**套在小标题和卡片上：两样东西一起承接外部的
+ *   左右留白（本页大标题那条是通栏的，所以留白只能加在这一层，不能加在整列上）。
+ */
 @Composable
 private fun SettingsSection(
     title: String,
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Text(
         text = title,
         style = AppTheme.type.caption,
         color = AppTheme.colors.textTertiary,
-        modifier = Modifier.padding(
+        modifier = modifier.padding(
             start = Spacing.xs,
             top = Spacing.xl,
             bottom = Spacing.sm
@@ -797,7 +1017,10 @@ private fun SettingsSection(
     )
 
     AppCard(
+        modifier = modifier,
         tone = AppCardTone.Glass,
+        shape = RoundedCornerShape(Radius.xl),
+        cornerRadius = Radius.xl,
         contentPadding = PaddingValues(0.dp),
         content = content
     )
@@ -892,10 +1115,13 @@ private fun AboutLine(label: String, value: String) {
 }
 
 /**
- * 设置页顶部的资料卡：头像 + 昵称 + 签名，点一下进个人资料页。
+ * 设置页顶部的资料卡：头像 + 昵称 + 阶段 + 签名，点一下进个人资料页。
  *
  * 没设置过昵称时退回「个人资料」这个标题和说明，
  * 让第一眼仍然是"这里可以设置资料"，而不是一片空白。
+ *
+ * 阶段牌子（Lv.N）和首页、「我的」是同一个数（见 [SettingsUiState.level]）：
+ * 这一页是二级页，但"我走到哪一阶段了"在这三处必须是同一个答案。
  */
 @Composable
 private fun ProfileHeader(
@@ -903,15 +1129,19 @@ private fun ProfileHeader(
     signature: String,
     avatarPath: String?,
     avatarPreset: AvatarPreset?,
+    level: Int,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val colors = AppTheme.colors
 
     AppCard(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(top = Spacing.xl),
+            .padding(top = Spacing.lg),
         tone = AppCardTone.Glass,
+        shape = RoundedCornerShape(Radius.xl),
+        cornerRadius = Radius.xl,
         onClick = onClick
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -923,13 +1153,22 @@ private fun ProfileHeader(
             )
             Spacer(modifier = Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = nickname.ifBlank { stringResource(R.string.settings_profile) },
-                    style = AppTheme.type.h3,
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = nickname.ifBlank { stringResource(R.string.settings_profile) },
+                        style = AppTheme.type.h2,
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        // 名字长的时候先挤名字，阶段牌子始终留在行里：
+                        // 牌子被挤掉就没法一眼看出走到哪了
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (nickname.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(Spacing.sm))
+                        LevelPill(level = level)
+                    }
+                }
                 Spacer(modifier = Modifier.height(Spacing.xxs))
                 Text(
                     text = signature.ifBlank { stringResource(R.string.settings_profile_desc) },
@@ -942,7 +1181,9 @@ private fun ProfileHeader(
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                 contentDescription = null,
-                tint = colors.textTertiary
+                // 这一枚跟着强调色走：它是"整张卡可以进去"的提示，
+                // 比行尾那些"这一项还有下一页"的箭头更值得被看见
+                tint = colors.accent
             )
         }
     }
@@ -1092,6 +1333,9 @@ private fun SettingsPreview() {
         SettingsScreen(
             uiState = SettingsUiState(
                 themeMode = ThemeMode.SYSTEM,
+                nickname = "小满",
+                signature = "慢慢来，比较快。",
+                level = 11,
                 stats = BackupSummary(12, 7, 31),
                 appVersion = "1.0"
             ),
