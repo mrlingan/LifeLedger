@@ -104,6 +104,7 @@ This project tries something a little different — it treats **what has already
 ### 💾 Backup
 
 - One-tap export to a `.zip` containing all structured data, the original images and videos, and your profile (nickname, signature, avatar)
+- That zip currently carries achievements, notes, media, the codex, your profile and every setting; the **growth ledger, long-term goals / daily tasks and XP store data are not in it yet** — worth knowing before you switch phones (planned for a later version)
 - You can **protect the whole backup with a passphrase** (PBKDF2-HMAC-SHA256 key derivation + AES-256-GCM): leave it empty for a plain zip, or set one and everything inside is ciphertext; importing an encrypted backup asks for the passphrase automatically
 - Import with a second confirmation (restore overwrites everything)
 - Media paths inside a backup are relative, so **restoring on a new phone works**
